@@ -16,12 +16,32 @@
 
 import { createServer } from "vite";
 
-const STOPWORDS = new Set([
-  "the", "a", "an", "of", "and", "or", "in", "on", "for", "to", "with",
-  "production", "ownership", "response", "modelling", "modeling", "design",
-]);
+/**
+ * Words that show a criterion is actually discussed in a document. Used to
+ * catch a false "no evidence found" claim. Update when criteria change.
+ */
+const CRITERION_KEYWORDS = {
+  "api-ownership": ["api", "endpoint", "endpoints"],
+  "incident-response": [
+    "incident", "incidents", "on-call", "on call", "outage", "outages",
+    "sev-1", "postmortem", "post-incident", "runbook",
+  ],
+  "production-kubernetes": [
+    "kubernetes", "k8s", "eks", "gke", "aks", "cluster", "clusters", "helm",
+  ],
+  "data-modelling": [
+    "schema", "schemas", "data model", "data modelling", "data modeling",
+    "modelled", "modeled", "normalised", "normalized",
+  ],
+};
 
 const norm = (s) => String(s).replace(/\s+/g, " ").trim().toLowerCase();
+
+/** Word-boundary match, so "data" does not match "database". */
+function mentions(doc, keyword) {
+  const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`(^|[^a-z0-9])${escaped}([^a-z0-9]|$)`, "i").test(doc);
+}
 
 async function loadSeed() {
   const server = await createServer({
@@ -36,10 +56,13 @@ async function loadSeed() {
   }
 }
 
-function keywordsFor(label) {
-  return norm(label)
-    .split(" ")
-    .filter((w) => w.length > 3 && !STOPWORDS.has(w));
+function keywordsFor(criterionId, labelText) {
+  return (
+    CRITERION_KEYWORDS[criterionId] ??
+    norm(labelText)
+      .split(" ")
+      .filter((w) => w.length > 4)
+  );
 }
 
 const failures = [];
@@ -104,7 +127,7 @@ for (const record of records) {
   for (const item of record.evidence) {
     const name = `${candidate.name} / ${label(item.criterionId)}`;
 
-    if (item.status === "supported") {
+    if (item.status === "supported" || item.status === "conflicting") {
       // Check 3: range sanity
       if (
         !Number.isInteger(item.sourceStartLine) ||
@@ -138,7 +161,7 @@ for (const record of records) {
       const haystack = norm(rangeText.join(" "));
       const needle = norm(item.quotedText);
       if (!needle) {
-        fail(`${name}: status is supported but quotedText is empty`);
+        fail(`${name}: status is ${item.status} but quotedText is empty`);
       } else if (!haystack.includes(needle)) {
         fail(
           `${name}: quotedText does not appear in lines ${item.sourceStartLine} to ${item.sourceEndLine}`,
@@ -162,8 +185,8 @@ for (const record of records) {
 
       // Check 4: contradiction. This is the one that catches a false
       // "no evidence found" claim while the source clearly mentions it.
-      const hits = keywordsFor(label(item.criterionId)).filter((kw) =>
-        wholeDoc.includes(kw),
+      const hits = keywordsFor(item.criterionId, label(item.criterionId)).filter(
+        (kw) => mentions(wholeDoc, kw),
       );
       if (hits.length) {
         fail(
