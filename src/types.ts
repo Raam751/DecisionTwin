@@ -51,6 +51,7 @@ export interface ReviewerEdit {
   previousValue: string;
   newValue: string;
   reason: string;
+  reviewer: string;
   timestamp: string;
 }
 
