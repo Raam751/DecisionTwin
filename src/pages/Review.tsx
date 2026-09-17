@@ -6,8 +6,8 @@ import SourceDocument from "@/components/source-document";
 import { StatusBadge } from "@/components/status-badge";
 import { cn } from "@/lib/utils";
 import {
-  candidateAEvidenceRecord,
   candidates,
+  evidenceRecords,
   platformEngineerRole,
 } from "@/data/seed";
 import type { EvidenceItem, RoleCriterion } from "@/types";
@@ -24,9 +24,7 @@ const Review = () => {
 
   const candidate = candidates.find((c) => c.id === candidateId);
   const role = platformEngineerRole;
-  const record = [candidateAEvidenceRecord].find(
-    (r) => r.candidateId === candidate?.id,
-  );
+  const record = evidenceRecords.find((r) => r.candidateId === candidate?.id);
 
   const rows = useMemo<CriterionRow[]>(() => {
     if (!record) return [];
@@ -120,6 +118,7 @@ const Review = () => {
               <ul className="mt-4 space-y-3">
                 {rows.map(({ criterion, item, interviewQuestion }) => {
                   const isUncertain = item?.status === "uncertain";
+                  const isConflicting = item?.status === "conflicting";
                   const clickable =
                     !!item && !isUncertain && item.sourceStartLine > 0;
                   const isActive = item?.criterionId === activeCriterionId;
@@ -147,13 +146,20 @@ const Review = () => {
                         </div>
                         <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
                           {clickable && item
-                            ? `Lines ${item.sourceStartLine} to ${item.sourceEndLine}`
+                            ? item.sourceStartLine === item.sourceEndLine
+                              ? `Line ${item.sourceStartLine}`
+                              : `Lines ${item.sourceStartLine} to ${item.sourceEndLine}`
                             : isUncertain
                               ? "No cited lines"
                               : "not cited"}
                         </span>
                       </div>
-                      {isUncertain && interviewQuestion && (
+                      {isConflicting && item && (
+                        <p className="mt-3 text-sm leading-relaxed text-rose-900">
+                          {item.explanation}
+                        </p>
+                      )}
+                      {(isUncertain || isConflicting) && interviewQuestion && (
                         <div className="mt-4 flex gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
                           <MessageCircleQuestionMark className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />
                           <div>
@@ -173,7 +179,9 @@ const Review = () => {
                     "rounded-2xl border transition-all duration-200",
                     isUncertain
                       ? "border-amber-200 bg-amber-50/60"
-                      : "border-border bg-card",
+                      : isConflicting
+                        ? "border-rose-200 bg-rose-50/60"
+                        : "border-border bg-card",
                     clickable &&
                       "cursor-pointer hover:border-primary/40 hover:shadow-sm",
                     clickable &&

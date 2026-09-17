@@ -28,7 +28,9 @@ const SourceDocument = ({ title, lines, activeRange }: SourceDocumentProps) => {
         <span className="truncate text-sm font-semibold">{title}</span>
         {activeRange && (
           <span className="ml-auto shrink-0 rounded-full bg-peach px-2.5 py-0.5 text-xs font-medium tabular-nums text-peach-foreground">
-            Lines {activeRange.start} to {activeRange.end}
+            {activeRange.start === activeRange.end
+              ? `Line ${activeRange.start}`
+              : `Lines ${activeRange.start} to ${activeRange.end}`}
           </span>
         )}
       </div>

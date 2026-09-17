@@ -7,6 +7,8 @@ export interface RoleCriterion {
 export interface Role {
   id: string;
   title: string;
+  /** The source job description the criteria were derived from. */
+  jobDescription: string;
   criteria: RoleCriterion[];
 }
 
@@ -28,11 +30,15 @@ export type EvidenceStatus = "supported" | "uncertain" | "conflicting";
 export interface EvidenceItem {
   criterionId: string;
   status: EvidenceStatus;
-  citationVerified: boolean;
   quotedText: string;
   sourceStartLine: number;
   sourceEndLine: number;
   explanation: string;
+  /**
+   * True only when the quoted text was confirmed to exist within the cited
+   * line range. Set by server-side verification, never by the model.
+   */
+  citationVerified: boolean;
 }
 
 export interface InterviewQuestion {

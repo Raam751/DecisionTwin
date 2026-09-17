@@ -24,3 +24,8 @@ reports
 *.sln
 *.sw?
 code_template.zip
+
+# Local env files (never commit real keys)
+.env
+.env.local
+.env.*.local
