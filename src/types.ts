@@ -28,6 +28,7 @@ export type EvidenceStatus = "supported" | "uncertain" | "conflicting";
 export interface EvidenceItem {
   criterionId: string;
   status: EvidenceStatus;
+  citationVerified: boolean;
   quotedText: string;
   sourceStartLine: number;
   sourceEndLine: number;

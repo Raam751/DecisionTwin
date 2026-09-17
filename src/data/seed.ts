@@ -39,13 +39,13 @@ const placeholderLines = Array.from({ length: 12 }, (_, i) => ({
 export const candidates: Candidate[] = [
   {
     id: "candidate-a",
-    name: "Candidate A",
+    name: "Priya Menon",
     roleId: platformEngineerRole.id,
     documentTitle: "Resume",
     documentLines: [
       {
         lineNumber: 1,
-        text: "Senior Platform Engineer — Acme Corp, 2019–2025",
+        text: "Senior Platform Engineer, Acme Corp, 2019 to 2025",
       },
       {
         lineNumber: 2,
@@ -57,7 +57,7 @@ export const candidates: Candidate[] = [
       },
       {
         lineNumber: 4,
-        text: "On-call lead for the payments platform; drove post-incident reviews.",
+        text: "On-call lead for the payments platform and drove post-incident reviews.",
       },
       {
         lineNumber: 5,
@@ -69,11 +69,11 @@ export const candidates: Candidate[] = [
       },
       {
         lineNumber: 7,
-        text: "Operated a 12-node Kubernetes cluster hosting 200+ production workloads.",
+        text: "Maintained the Terraform modules for shared networking and secrets.",
       },
       {
         lineNumber: 8,
-        text: "Authored the cluster upgrade runbook and capacity-planning standards.",
+        text: "Authored the release runbook and capacity-planning standards for the platform.",
       },
       {
         lineNumber: 9,
@@ -89,7 +89,7 @@ export const candidates: Candidate[] = [
       },
       {
         lineNumber: 12,
-        text: "Tech stack: Go, Kubernetes, Terraform, Postgres, Redshift.",
+        text: "Tech stack: Go, Terraform, Postgres, Redshift.",
       },
     ],
   },
@@ -118,9 +118,10 @@ export const candidateAEvidenceRecord: EvidenceRecord = {
       criterionId: "api-ownership",
       status: "supported",
       quotedText:
-        "Owned the public REST API serving 40+ internal and external clients.\nDesigned the v2 API contract, versioning policy, and deprecation process.",
+        "Owned the public REST API serving 40+ internal and external clients. Designed the v2 API contract, versioning policy, and deprecation process.",
       sourceStartLine: 2,
       sourceEndLine: 3,
+      citationVerified: true,
       explanation:
         "Two consecutive lines describe direct ownership of the API and design of its contract, versioning, and deprecation lifecycle.",
     },
@@ -128,9 +129,10 @@ export const candidateAEvidenceRecord: EvidenceRecord = {
       criterionId: "incident-response",
       status: "supported",
       quotedText:
-        "On-call lead for the payments platform; drove post-incident reviews.\nCut mean time to recovery from 90 to 25 minutes across production incidents.\nBuilt incident runbooks and automated the first-response alerting pipeline.",
+        "On-call lead for the payments platform and drove post-incident reviews. Cut mean time to recovery from 90 to 25 minutes across production incidents. Built incident runbooks and automated the first-response alerting pipeline.",
       sourceStartLine: 4,
       sourceEndLine: 6,
+      citationVerified: true,
       explanation:
         "Shows on-call ownership, measurable incident impact, and runbook/automation work.",
     },
@@ -138,9 +140,10 @@ export const candidateAEvidenceRecord: EvidenceRecord = {
       criterionId: "data-modelling",
       status: "supported",
       quotedText:
-        "Migrated the data warehouse to a star schema serving analytics dashboards.\nModelled event tables for the analytics team, cutting query time 40%.",
+        "Migrated the data warehouse to a star schema serving analytics dashboards. Modelled event tables for the analytics team, cutting query time 40%.",
       sourceStartLine: 9,
       sourceEndLine: 10,
+      citationVerified: true,
       explanation:
         "Concrete schema design and modelling work with measurable performance impact.",
     },
@@ -150,6 +153,7 @@ export const candidateAEvidenceRecord: EvidenceRecord = {
       quotedText: "",
       sourceStartLine: 0,
       sourceEndLine: 0,
+      citationVerified: false,
       explanation: "No supporting evidence found in the source document.",
     },
   ],
@@ -157,7 +161,7 @@ export const candidateAEvidenceRecord: EvidenceRecord = {
     {
       criterionId: "production-kubernetes",
       question:
-        "Can you describe the Kubernetes clusters you have operated in production — their size, criticality, and your day-to-day operational role?",
+        "Which production Kubernetes workloads have you operated, and what changed after your last incident with one?",
     },
   ],
   reviewerEdits: [],

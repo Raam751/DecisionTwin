@@ -1,4 +1,4 @@
-import { Check, CircleAlert, HelpCircle } from "lucide-react";
+import { BadgeCheck, Check, CircleAlert, HelpCircle } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -27,23 +27,32 @@ const statusConfig: Record<
 
 export function StatusBadge({
   status,
+  verified = false,
   className,
 }: {
   status: EvidenceStatus;
+  verified?: boolean;
   className?: string;
 }) {
   const config = statusConfig[status];
   const Icon = config.icon;
   return (
-    <span
-      className={cn(
-        "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium",
-        config.className,
-        className,
+    <span className={cn("inline-flex shrink-0 items-center gap-1.5", className)}>
+      <span
+        className={cn(
+          "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium",
+          config.className,
+        )}
+      >
+        <Icon className="h-3.5 w-3.5" />
+        {config.label}
+      </span>
+      {verified && (
+        <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700">
+          <BadgeCheck className="h-3.5 w-3.5" />
+          Verified
+        </span>
       )}
-    >
-      <Icon className="h-3.5 w-3.5" />
-      {config.label}
     </span>
   );
 }
