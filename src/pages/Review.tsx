@@ -128,7 +128,13 @@ const Review = () => {
                       <div className="flex items-center justify-between gap-4">
                         <div className="flex min-w-0 items-center gap-3">
                           {item ? (
-                            <StatusBadge status={item.status} />
+                            <StatusBadge
+                              status={item.status}
+                              verified={
+                                item.status === "supported" &&
+                                item.citationVerified
+                              }
+                            />
                           ) : (
                             <span className="shrink-0 text-xs text-muted-foreground">
                               No assessment
