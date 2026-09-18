@@ -1,50 +1,44 @@
-# Condense extracted resume lines
+# Decisions screen for the active role
 
 ## Context
-PDF and text extraction can produce a very long numbered list (many bullet lines, achievements, education details). The reviewer wants a shorter, factual list covering roles, responsibilities, notable achievements, and an education summary, condensed automatically right after extraction, with the mandatory confirmation step still in place.
+Add a `/decisions` view that groups every candidate in the active role by the human decision recorded on their evidence record. This page is a factual record of decisions humans made, never a shortlist, ranking, or tool-produced selection. It reuses the existing `useRoleRecords` hook and existing dispositions, adds no backend work, and appears in the main navigation.
 
-The condense call runs only inside the existing upload flow (a user action), so the invariant that no model call runs on page load or mount stays intact.
+Branch state: the current branch is already `main` and includes everything from `github/main` unchanged. Git mutations (pull, reset, merge) are framework-managed and rejected here, so no reset is performed and nothing on main that I did not write is reverted.
 
 ## Approach
-Reuse the established pattern from `extract-candidate-name`: a self-contained edge function copying `generate-criteria` protocol handling exactly, a thin client service, and wiring inside the existing processing effect in `NewCandidate.tsx`.
 
-### New edge function `supabase/functions/condense-resume/index.ts`
-- Copy `generate-criteria` structure verbatim for CORS, JSON helpers, protocol resolution, URL normalisation, auth ladder, `postModel`, `readContent`, `callModel`, and the `Deno.serve` handler.
-- Request body: `{ resumeText: string }`.
-- Prompt rules: keep factual, short, standalone lines covering job titles, companies, responsibilities, notable achievements, and a short education summary. Drop contact details, dates lists, verbose bullets, repeated content. Return 8 to 15 lines, name on the first line.
-- Output JSON: `{"lines": string[]}`.
-- Shaping: trim each line, drop empty lines, cap at 15, reject fewer than 2 usable lines.
-- Deploy with `supabase_deploy_edge_function`.
+### New page `src/pages/Decisions.tsx`
+- Read `activeRole` and `activeCandidates` from `useRoles`; load records with the existing `useRoleRecords(activeCandidates)`.
+- Group candidates by their record's `humanDecision.disposition`, in candidate insertion order within each group. Groups are the three existing dispositions plus `No decision recorded` for candidates with no record or a record without `humanDecision`. An unknown stored disposition (defensive) gets its own group appended after the four, so a real decision is never hidden or mislabelled.
+- Header: title `Decisions`, role name, and a fixed framing line making explicit that these are human decisions, each with a named reviewer and a recorded reason, and that the tool did not select anyone.
+- One section per group with a count and an empty state when the group has no candidates (muted box, no ranking language).
+- Each entry shows candidate name, reviewer, the written reason, when it was recorded (same `toLocaleString` format as the decision panel), a coverage line (e.g. "N of M essential criteria covered by cited evidence", from the record, facts only), and a link to that candidate's review screen. The `No decision recorded` entries show an explanatory line and a link to the review screen where the decision can be recorded.
+- No model call, no new backend function, no new table, no scores, percentages, stars, medals, or ordering by quality.
 
-### Client service `src/services/condense-api.ts`
-Mirror `candidate-name-api.ts`: `condenseResume(resumeText): Promise<string[]>` with defensive shape checks.
+### Navigation and route
+- Add `Decisions` (`/decisions`, `Scale` icon) to `src/components/main-nav.tsx` alongside Candidates and Roles.
+- Add the `/decisions` route in `src/router.tsx` wrapped in `AppShell`, before the catch-all.
 
-### Page wiring `src/pages/NewCandidate.tsx`
-- After extraction produces raw lines inside the processing effect, if `rawLines.length > 15`, set the per-file progress label to "Condensing with AI" and call `condenseResume`. Use the condensed lines when returned and usable.
-- On condense failure (error or unusable reply), fall back to the raw extracted lines and set a soft note on the file ("Could not condense this file. The raw lines are shown; edit them before saving."). The file still reaches the ready state and the mandatory confirmation editor, so an upload is never blocked by the model.
-- Add `condenseNote: string | null` to `IntakeFile`; render it in the confirmation panel.
-- Short files (15 lines or fewer) skip the model call and keep the raw lines unchanged.
-- The reviewer still edits, merges, splits, deletes, and confirms before anything is saved.
-
-### Copy rule
-No em dashes or en dashes in any new code, copy, or comments.
+### Reused patterns
+- `useRoleRecords`, `EvidenceRecord.humanDecision` (`disposition`, `reviewerName`, `reason`, `timestamp`), the three dispositions from `decision-panel.tsx`, the `toLocaleString` timestamp format, the app shell/page heading, card and eyebrow styles, and the status/canvas colour tokens. No new dependencies.
 
 ### Protected and unchanged
-`scripts/`, `src/data/seed.ts`, `src/types.ts`, `generate-evidence`, `save-review`, `save-workspace` remain untouched. Reason minimums, citation verification, deep links, and workspace scoping are untouched.
+`scripts/`, `src/data/seed.ts`, `src/types.ts`, and `supabase/functions/` are untouched. Reason minimums, citation verification, deep links, and workspace scoping are untouched.
+
+### Copy rule
+No em dashes or en dashes in code, copy, comments, or placeholders.
 
 ## Implementation checklist
-- [x] Create and deploy `supabase/functions/condense-resume/index.ts` copying `generate-criteria` protocol handling exactly.
-- [x] Create `src/services/condense-api.ts` mirroring `candidate-name-api.ts`.
-- [x] Wire auto-condensing into the `NewCandidate.tsx` processing effect with progress label, fallback to raw lines, and a soft warning note.
-- [x] Add the condense note to the confirmation panel UI.
-- [x] Confirm no em/en dashes in new code and copy.
+- [ ] Create `src/pages/Decisions.tsx` grouping by disposition with counts, entries, empty states, framing line, and review links.
+- [ ] Add `Decisions` to `src/components/main-nav.tsx` with a `Scale` icon.
+- [ ] Add the `/decisions` route to `src/router.tsx` inside `AppShell`.
+- [ ] Confirm no em/en dashes in the new page and navigation.
+- [ ] Keep protected files untouched.
 
 ## Verification checklist
-- [x] Run `pnpm lint`, `pnpm exec tsc --noEmit`, `pnpm run build`, and `pnpm run build:prod --manifest`.
-- [x] Browser-test a long PDF (more than 15 lines) with a stubbed condense reply: fewer condensed lines appear, numbered from 1, confirmation still required.
-- [x] Browser-test condense failure: raw lines shown, warning note visible, file still ready for confirmation.
-- [x] Browser-test a short file (15 lines or fewer): no condense call fires, raw lines kept.
-- [x] Confirm no page errors and no `save-workspace` call without explicit confirmation.
-- [x] Exercise the deployed function with one real call and report the outcome; redeploy after any fix.
-- [x] Run the strict production audit and classify the new dynamic module; retain known pre-existing warnings.
-- [x] State clearly which items were verified by execution and which only by reading code.
+- [ ] Run `pnpm lint`, `pnpm exec tsc --noEmit`, `pnpm run build`, and `pnpm run build:prod --manifest`.
+- [ ] Browser-verify `/decisions`: all four groups render with counts; candidates appear in insertion order inside each group; entries show name, reviewer, reason, recorded time, coverage line, and review link; empty groups show an empty state; the framing line is present.
+- [ ] Verify the navigation shows Candidates, Roles, and Decisions, and each link routes correctly.
+- [ ] Verify the page loads records without any model call and without writes.
+- [ ] Confirm no ranking, score, or selection marks anywhere in the rendered page.
+- [ ] State clearly which items were verified by execution and which only by reading code.
