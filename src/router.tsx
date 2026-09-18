@@ -1,4 +1,6 @@
 import Index from "./pages/Index";
+import NewCandidate from "./pages/NewCandidate";
+import NewRole from "./pages/NewRole";
 import NotFound from "./pages/NotFound";
 import Review from "./pages/Review";
 
@@ -7,6 +9,16 @@ export const routers = [
     path: "/",
     name: "home",
     element: <Index />,
+  },
+  {
+    path: "/roles/new",
+    name: "new-role",
+    element: <NewRole />,
+  },
+  {
+    path: "/candidates/new",
+    name: "new-candidate",
+    element: <NewCandidate />,
   },
   {
     path: "/review/:candidateId",
