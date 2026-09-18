@@ -1,0 +1,6 @@
+-- Removes exactly the three reviewer_events rows written by the save-review
+-- verification at 08:50 today (ids 4, 5, 6, all on evidence-candidate-a).
+-- That record had no events before the test, confirmed by reading the table
+-- first, so no real reviewer history is touched. The record's own content has
+-- already been restored byte-for-byte from a snapshot taken before the test.
+delete from public.reviewer_events where id in (4, 5, 6) and record_id = 'evidence-candidate-a';

@@ -1,3 +1,4 @@
+import Compare from "./pages/Compare";
 import Index from "./pages/Index";
 import NewCandidate from "./pages/NewCandidate";
 import NewRole from "./pages/NewRole";
@@ -24,6 +25,11 @@ export const routers = [
     path: "/review/:candidateId",
     name: "review",
     element: <Review />,
+  },
+  {
+    path: "/compare",
+    name: "compare",
+    element: <Compare />,
   },
   /* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */
   {
