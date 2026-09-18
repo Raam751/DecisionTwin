@@ -4,7 +4,7 @@ import { BriefcaseBusiness, UsersRound } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const ITEMS = [
-  { to: "/", label: "Candidates", icon: UsersRound, end: true },
+  { to: "/dashboard", label: "Candidates", icon: UsersRound, end: true },
   { to: "/roles", label: "Roles", icon: BriefcaseBusiness, end: false },
 ];
 

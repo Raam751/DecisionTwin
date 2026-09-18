@@ -242,7 +242,7 @@ const Review = () => {
           <p className="mt-3 text-sm text-muted-foreground">
             That candidate is not part of the active role in this session.
           </p>
-          <Button className="mt-6" onClick={() => navigate("/")}>
+          <Button className="mt-6" onClick={() => navigate("/dashboard")}>
             Back to candidates
           </Button>
         </div>
@@ -269,7 +269,7 @@ const Review = () => {
       <div className="mx-auto max-w-[1180px] px-5 py-8 md:px-10 md:py-12">
         <button
           type="button"
-          onClick={() => navigate("/")}
+          onClick={() => navigate("/dashboard")}
           className="focus-ring group inline-flex items-center gap-1.5 rounded-lg text-sm font-medium text-muted-foreground transition-colors hover:text-ink"
         >
           <ChevronLeft

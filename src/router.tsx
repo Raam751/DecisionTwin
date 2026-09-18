@@ -1,5 +1,6 @@
 import Compare from "./pages/Compare";
 import Index from "./pages/Index";
+import Landing from "./pages/Landing";
 import NewCandidate from "./pages/NewCandidate";
 import NewRole from "./pages/NewRole";
 import NotFound from "./pages/NotFound";
@@ -9,7 +10,12 @@ import Roles from "./pages/Roles";
 export const routers = [
   {
     path: "/",
-    name: "home",
+    name: "landing",
+    element: <Landing />,
+  },
+  {
+    path: "/dashboard",
+    name: "dashboard",
     element: <Index />,
   },
   {

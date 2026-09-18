@@ -85,7 +85,7 @@ const Roles = () => {
 
   const openRoleCandidates = (roleId: string) => {
     setActiveRoleId(roleId);
-    navigate("/");
+    navigate("/dashboard");
   };
 
   const openRoleCompare = (roleId: string) => {

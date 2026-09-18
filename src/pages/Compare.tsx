@@ -26,7 +26,7 @@ const Compare = () => {
     <div className="min-h-full bg-background">
       <div className="mx-auto max-w-6xl px-6 py-10 md:px-10">
         <button
-          onClick={() => navigate("/")}
+          onClick={() => navigate("/dashboard")}
           className="group inline-flex items-center gap-1 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
         >
           <ChevronLeft className="h-4 w-4 transition-transform group-hover:-translate-x-0.5" />
