@@ -1,33 +1,50 @@
-# Safari rendering and role-action cleanup
+# Condense extracted resume lines
 
 ## Context
-Safari on the user’s Mac looks almost completely unstyled; Chrome looks correct. Safari version and the exact affected URL are not yet known. The dashboard also has a redundant New role button inside the Platform Engineer panel; role creation should be offered only in Roles. Headline alternatives were requested, not a headline replacement.
+PDF and text extraction can produce a very long numbered list (many bullet lines, achievements, education details). The reviewer wants a shorter, factual list covering roles, responsibilities, notable achievements, and an education summary, condensed automatically right after extraction, with the mandatory confirmation step still in place.
 
-Main was fetched at task start and inspected at `bbfde74`. Existing user changes remain intact.
-
-## Findings so far
-- Production CSS exists and includes both landing and workspace selectors.
-- The built stylesheet contains no remaining cascade-layer wrappers, imports or supports gates that could by themselves explain wholesale loss of styling.
-- PostCSS already includes Autoprefixer. Existing available console errors refer to an older, replaced animation implementation—not evidence for this Safari issue.
-- Do not assume caching, unsupported CSS, or fonts are the cause without browser evidence.
+The condense call runs only inside the existing upload flow (a user action), so the invariant that no model call runs on page load or mount stays intact.
 
 ## Approach
-1. Run the existing production build in Chromium and Playwright WebKit at 1280×720. Inspect stylesheet requests/status/MIME, parsed stylesheets, computed palette/layout/font styles, and runtime failures. Test the current preview URL as well if browser access permits.
-2. Fix only a demonstrated code/build compatibility problem. Preserve the current design. If local WebKit is correct or the preview is inaccessible, report that limit and request the exact Safari version/affected URL rather than claiming Safari is fixed. Playwright WebKit is a useful engine test, not a guarantee for every macOS Safari release.
-3. Remove the New role button and unused Plus import from `src/pages/Index.tsx`. Keep the Roles page’s creation actions and `/roles/new` route intact.
-4. Keep the existing headline until a replacement is selected. Suggested alternatives: **Hiring decisions deserve evidence.**; **See the evidence. Own the decision.**; **Less instinct. More evidence.**; **Know why. Not just who.**
+Reuse the established pattern from `extract-candidate-name`: a self-contained edge function copying `generate-criteria` protocol handling exactly, a thin client service, and wiring inside the existing processing effect in `NewCandidate.tsx`.
+
+### New edge function `supabase/functions/condense-resume/index.ts`
+- Copy `generate-criteria` structure verbatim for CORS, JSON helpers, protocol resolution, URL normalisation, auth ladder, `postModel`, `readContent`, `callModel`, and the `Deno.serve` handler.
+- Request body: `{ resumeText: string }`.
+- Prompt rules: keep factual, short, standalone lines covering job titles, companies, responsibilities, notable achievements, and a short education summary. Drop contact details, dates lists, verbose bullets, repeated content. Return 8 to 15 lines, name on the first line.
+- Output JSON: `{"lines": string[]}`.
+- Shaping: trim each line, drop empty lines, cap at 15, reject fewer than 2 usable lines.
+- Deploy with `supabase_deploy_edge_function`.
+
+### Client service `src/services/condense-api.ts`
+Mirror `candidate-name-api.ts`: `condenseResume(resumeText): Promise<string[]>` with defensive shape checks.
+
+### Page wiring `src/pages/NewCandidate.tsx`
+- After extraction produces raw lines inside the processing effect, if `rawLines.length > 15`, set the per-file progress label to "Condensing with AI" and call `condenseResume`. Use the condensed lines when returned and usable.
+- On condense failure (error or unusable reply), fall back to the raw extracted lines and set a soft note on the file ("Could not condense this file. The raw lines are shown; edit them before saving."). The file still reaches the ready state and the mandatory confirmation editor, so an upload is never blocked by the model.
+- Add `condenseNote: string | null` to `IntakeFile`; render it in the confirmation panel.
+- Short files (15 lines or fewer) skip the model call and keep the raw lines unchanged.
+- The reviewer still edits, merges, splits, deletes, and confirms before anything is saved.
+
+### Copy rule
+No em dashes or en dashes in any new code, copy, or comments.
+
+### Protected and unchanged
+`scripts/`, `src/data/seed.ts`, `src/types.ts`, `generate-evidence`, `save-review`, `save-workspace` remain untouched. Reason minimums, citation verification, deep links, and workspace scoping are untouched.
 
 ## Implementation checklist
-- [ ] Reproduce or bound the Safari symptom with stylesheet/network/computed-style evidence in WebKit and Chromium.
-- [ ] Apply only the compatibility fix supported by the investigation, or explicitly document why the Safari issue remains unverified.
-- [ ] Remove the dashboard New role action and unused icon import; preserve role creation in Roles.
-- [ ] Leave slogan copy, backend/data, fixtures/types, generated integrations, state/services/hooks, and protected scripts unchanged.
+- [x] Create and deploy `supabase/functions/condense-resume/index.ts` copying `generate-criteria` protocol handling exactly.
+- [x] Create `src/services/condense-api.ts` mirroring `candidate-name-api.ts`.
+- [x] Wire auto-condensing into the `NewCandidate.tsx` processing effect with progress label, fallback to raw lines, and a soft warning note.
+- [x] Add the condense note to the confirmation panel UI.
+- [x] Confirm no em/en dashes in new code and copy.
 
 ## Verification checklist
-- [ ] Run `pnpm lint`, `pnpm exec tsc --noEmit`, `pnpm run build`, and `pnpm run build:prod --manifest`.
-- [ ] Confirm `/dashboard` has no New role action and `/roles` still opens `/roles/new`.
-- [ ] Compare current Chrome/WebKit CSS loading and computed styles; check `/` and the representative `/dashboard` only, not an unrelated route sweep.
-- [ ] Recheck compact animation controls and the shared logo/navigation if affected by a compatibility fix.
-- [ ] Verify the affected desktop layout at 1280×720; only claim compatibility actually tested, and distinguish WebKit from the user’s Mac Safari.
-- [ ] Run the production artifact audit; retain known bundle/font/public-HTML warnings without an unrelated performance rewrite. Browser loading-performance and deployed HTTP conclusions stay limited to evidence obtained.
-- [ ] Review the final diff for unintended behavior or data changes.
+- [x] Run `pnpm lint`, `pnpm exec tsc --noEmit`, `pnpm run build`, and `pnpm run build:prod --manifest`.
+- [x] Browser-test a long PDF (more than 15 lines) with a stubbed condense reply: fewer condensed lines appear, numbered from 1, confirmation still required.
+- [x] Browser-test condense failure: raw lines shown, warning note visible, file still ready for confirmation.
+- [x] Browser-test a short file (15 lines or fewer): no condense call fires, raw lines kept.
+- [x] Confirm no page errors and no `save-workspace` call without explicit confirmation.
+- [x] Exercise the deployed function with one real call and report the outcome; redeploy after any fix.
+- [x] Run the strict production audit and classify the new dynamic module; retain known pre-existing warnings.
+- [x] State clearly which items were verified by execution and which only by reading code.
