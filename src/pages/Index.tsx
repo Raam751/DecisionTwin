@@ -3,6 +3,7 @@ import { Plus, Table2, UserPlus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { MainNav } from "@/components/main-nav";
 import { useRoles } from "@/state/roles-store";
 
 const Index = () => {
@@ -12,7 +13,9 @@ const Index = () => {
   return (
     <div className="min-h-full bg-background">
       <div className="mx-auto max-w-5xl px-6 py-10 md:px-10">
-        <header className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <MainNav />
+
+        <header className="mt-8 flex flex-wrap items-baseline gap-x-3 gap-y-1">
           <h1 className="text-2xl font-bold tracking-tight">DecisionTwin</h1>
           <p className="text-sm text-muted-foreground">
             The auditable hiring decision twin

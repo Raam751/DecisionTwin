@@ -4,12 +4,18 @@ import NewCandidate from "./pages/NewCandidate";
 import NewRole from "./pages/NewRole";
 import NotFound from "./pages/NotFound";
 import Review from "./pages/Review";
+import Roles from "./pages/Roles";
 
 export const routers = [
   {
     path: "/",
     name: "home",
     element: <Index />,
+  },
+  {
+    path: "/roles",
+    name: "roles",
+    element: <Roles />,
   },
   {
     path: "/roles/new",
