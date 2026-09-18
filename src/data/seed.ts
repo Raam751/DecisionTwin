@@ -388,11 +388,11 @@ export const nilaEvidenceRecord: EvidenceRecord = {
       criterionId: "production-kubernetes",
       status: "conflicting",
       quotedText:
-        "Kubernetes exposure has been limited to staging environments so far, with the production rollout planned for next quarter.",
-      sourceStartLine: 10,
+        "Led the platform team's Kubernetes migration and operated the production cluster for all shipping services. ... Kubernetes exposure has been limited to staging environments so far, with the production rollout planned for next quarter.",
+      sourceStartLine: 4,
       sourceEndLine: 10,
       explanation:
-        "This contradicts line 4, which claims she operated the production cluster for all shipping services. The same document makes both claims, so production experience cannot be established from it.",
+        "Line 4 claims she operated the production cluster for all shipping services. Line 10 says her Kubernetes exposure has been limited to staging. The same document makes both claims, so production experience cannot be established from it.",
       citationVerified: true,
     },
   ],

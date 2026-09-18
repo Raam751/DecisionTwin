@@ -101,12 +101,22 @@ function verifyItem(item: EvidenceItem, lines: DocumentLine[]): EvidenceItem {
     lines.some((l) => l.lineNumber === item.sourceStartLine) &&
     lines.some((l) => l.lineNumber === item.sourceEndLine);
 
-  const quote = normalise(item.quotedText);
   const haystack = rangeIsSane
     ? normalise(joinRange(lines, item.sourceStartLine, item.sourceEndLine))
     : "";
 
-  const holds = rangeIsSane && quote.length > 0 && haystack.includes(quote);
+  // A contradiction lives in two places at once, so a quote may be several
+  // passages joined by " ... ". Every segment must still appear verbatim inside
+  // the cited range. A single contiguous quote is just the one-segment case.
+  const segments = normalise(item.quotedText)
+    .split(/\s*\.\.\.\s*/)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+
+  const holds =
+    rangeIsSane &&
+    segments.length > 0 &&
+    segments.every((segment) => haystack.includes(segment));
 
   if (holds) {
     return { ...item, citationVerified: true };
@@ -205,6 +215,7 @@ function buildPrompt(body: RequestBody): string {
     '8. For "uncertain", set quotedText to an empty string and both line numbers to 0.',
     "9. Never invent evidence. A missing citation is the correct answer, not a failure.",
     "10. Add one interviewQuestion for every criterion that is not supported.",
+    '11. For a conflicting criterion, quote BOTH clashing passages verbatim, separated by " ... ", and set sourceStartLine to the first passage\'s line and sourceEndLine to the last passage\'s line.',
     "",
     "Return only JSON in this shape:",
     '{"evidence":[{"criterionId":"","status":"supported|uncertain|conflicting",',

@@ -159,15 +159,25 @@ for (const record of records) {
         rangeText.push(lineText.get(n));
       }
       const haystack = norm(rangeText.join(" "));
-      const needle = norm(item.quotedText);
-      if (!needle) {
+      // A conflicting item may quote two passages joined by " ... ". Each
+      // segment must appear verbatim inside the cited range.
+      const segments = norm(item.quotedText)
+        .split(/\s*\.\.\.\s*/)
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0);
+
+      const missingSegments = segments.filter((s) => !haystack.includes(s));
+
+      if (segments.length === 0) {
         fail(`${name}: status is ${item.status} but quotedText is empty`);
-      } else if (!haystack.includes(needle)) {
+      } else if (missingSegments.length > 0) {
         fail(
-          `${name}: quotedText does not appear in lines ${item.sourceStartLine} to ${item.sourceEndLine}`,
+          `${name}: ${missingSegments.length} of ${segments.length} quoted passage(s) do not appear in lines ${item.sourceStartLine} to ${item.sourceEndLine}`,
         );
       } else {
-        pass(`${name}: quote verified at lines ${item.sourceStartLine} to ${item.sourceEndLine}`);
+        pass(
+          `${name}: ${segments.length === 1 ? "quote" : `${segments.length} passages`} verified at lines ${item.sourceStartLine} to ${item.sourceEndLine}`,
+        );
       }
 
       if (item.citationVerified === undefined) {
