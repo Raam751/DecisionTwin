@@ -1,0 +1,5 @@
+-- Removes the disposable record created minutes ago to verify the save-review
+-- function end to end. It belongs to no candidate in the app ('selftest-candidate').
+-- Its three reviewer_events rows cascade away with it. No demo or reviewer data
+-- is touched: evidence-candidate-a/b/c are left untouched.
+delete from public.evidence_records where id = 'evidence-selftest-save-review' and candidate_id = 'selftest-candidate';

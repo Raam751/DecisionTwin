@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { ChevronLeft, LoaderCircle, Sparkles, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { PriorityToggle } from "@/components/priority-toggle";
 import { generateCriteria } from "@/services/criteria-api";
 import { useRoles } from "@/state/roles-store";
 import { cn } from "@/lib/utils";
@@ -37,6 +38,8 @@ const NewRole = () => {
 
   const canExtract = jobDescription.trim().length > 0 && !extracting;
   const canSave = !!criteria && criteria.length >= 2;
+  const essentialCount =
+    criteria?.filter((criterion) => criterion.required !== false).length ?? 0;
 
   const extract = async () => {
     setExtracting(true);
@@ -81,6 +84,8 @@ const NewRole = () => {
         id,
         label: criterion.label.trim(),
         description: criterion.description.trim(),
+        // Only an explicit "desirable" makes a criterion optional.
+        required: criterion.required !== false,
       };
     });
 
@@ -179,7 +184,8 @@ const NewRole = () => {
                 Criteria
               </p>
               <p className="text-xs text-muted-foreground">
-                {criteria.length} returned, edit or remove any of them
+                {criteria.length} returned, {essentialCount} essential. Edit,
+                set the priority or remove any of them.
               </p>
             </div>
 
@@ -189,10 +195,19 @@ const NewRole = () => {
                   key={`${criterion.id}-${index}`}
                   className="rounded-2xl border bg-card px-5 py-4"
                 >
-                  <div className="flex items-start justify-between gap-4">
-                    <span className="text-xs font-medium tabular-nums text-muted-foreground">
-                      {index + 1}
-                    </span>
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <span className="text-xs font-medium tabular-nums text-muted-foreground">
+                        {index + 1}
+                      </span>
+                      <PriorityToggle
+                        required={criterion.required !== false}
+                        onChange={(required) =>
+                          updateCriterion(index, { required })
+                        }
+                        label={criterion.label || `Criterion ${index + 1}`}
+                      />
+                    </div>
                     <button
                       type="button"
                       onClick={() => removeCriterion(index)}
@@ -223,6 +238,12 @@ const NewRole = () => {
                 </li>
               ))}
             </ul>
+
+            <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
+              Essential criteria are reported separately from desirable ones when
+              a candidate is assessed. The model proposes a default from the
+              wording of the description; the choice is yours.
+            </p>
 
             <div className="mt-6 flex flex-wrap items-center gap-3">
               <Button onClick={save} disabled={!canSave}>

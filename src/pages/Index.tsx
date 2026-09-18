@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { Plus, UserPlus } from "lucide-react";
+import { Plus, Table2, UserPlus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -73,14 +73,24 @@ const Index = () => {
             <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
               Candidates
             </p>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => navigate("/candidates/new")}
-            >
-              <UserPlus className="h-4 w-4" />
-              Add candidate
-            </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate("/compare")}
+              >
+                <Table2 className="h-4 w-4" />
+                Compare candidates
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate("/candidates/new")}
+              >
+                <UserPlus className="h-4 w-4" />
+                Add candidate
+              </Button>
+            </div>
           </div>
 
           {activeCandidates.length === 0 ? (

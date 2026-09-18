@@ -9,8 +9,9 @@ export const REVIEWERS = ["Meera Iyer", "Rohan Desai", "Sana Qureshi"];
  * Holds the working copy of one evidence record for the session.
  *
  * Every reviewer action is recorded as a ReviewerEdit so the replay panel can
- * show what a human changed and why. Nothing here is persisted yet; wiring this
- * to Supabase is the backend task.
+ * show what a human changed and why. Each action also returns the updated
+ * record, or null when nothing changed, so the caller can persist exactly the
+ * state the reviewer now sees.
  */
 export function useEvidenceRecord(initial: EvidenceRecord | undefined) {
   const [record, setRecord] = useState<EvidenceRecord | undefined>(initial);
@@ -25,60 +26,65 @@ export function useEvidenceRecord(initial: EvidenceRecord | undefined) {
       nextStatus: EvidenceStatus,
       reason: string,
       reviewer: string,
-    ) => {
-      setRecord((current) => {
-        if (!current) return current;
-        const target = current.evidence.find(
-          (e) => e.criterionId === criterionId,
-        );
-        if (!target || target.status === nextStatus) return current;
+    ): EvidenceRecord | null => {
+      const target = record?.evidence.find((e) => e.criterionId === criterionId);
+      if (!record || !target || target.status === nextStatus) return null;
 
-        return {
-          ...current,
-          evidence: current.evidence.map((e) =>
-            e.criterionId === criterionId ? { ...e, status: nextStatus } : e,
-          ),
-          reviewerEdits: [
-            ...current.reviewerEdits,
-            {
-              field: `evidence.${criterionId}.status`,
-              previousValue: target.status,
-              newValue: nextStatus,
-              reason,
-              reviewer,
-              timestamp: new Date().toISOString(),
-            },
-          ],
-        };
-      });
+      const next: EvidenceRecord = {
+        ...record,
+        evidence: record.evidence.map((e) =>
+          e.criterionId === criterionId ? { ...e, status: nextStatus } : e,
+        ),
+        reviewerEdits: [
+          ...record.reviewerEdits,
+          {
+            field: `evidence.${criterionId}.status`,
+            previousValue: target.status,
+            newValue: nextStatus,
+            reason,
+            reviewer,
+            timestamp: new Date().toISOString(),
+          },
+        ],
+      };
+
+      setRecord(next);
+      return next;
     },
-    [],
+    [record],
   );
 
   const saveDecision = useCallback(
-    (disposition: string, reason: string, reviewer: string) => {
-      setRecord((current) =>
-        current
-          ? {
-              ...current,
-              humanDecision: {
-                disposition,
-                reason,
-                reviewerName: reviewer,
-                timestamp: new Date().toISOString(),
-              },
-            }
-          : current,
-      );
+    (
+      disposition: string,
+      reason: string,
+      reviewer: string,
+    ): EvidenceRecord | null => {
+      if (!record) return null;
+
+      const next: EvidenceRecord = {
+        ...record,
+        humanDecision: {
+          disposition,
+          reason,
+          reviewerName: reviewer,
+          timestamp: new Date().toISOString(),
+        },
+      };
+
+      setRecord(next);
+      return next;
     },
-    [],
+    [record],
   );
 
-  const clearDecision = useCallback(() => {
-    setRecord((current) =>
-      current ? { ...current, humanDecision: null } : current,
-    );
-  }, []);
+  const clearDecision = useCallback((): EvidenceRecord | null => {
+    if (!record?.humanDecision) return null;
+
+    const next: EvidenceRecord = { ...record, humanDecision: null };
+    setRecord(next);
+    return next;
+  }, [record]);
 
   const resetRecord = useCallback(() => setRecord(initial), [initial]);
 

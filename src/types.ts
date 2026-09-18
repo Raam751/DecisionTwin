@@ -2,6 +2,12 @@ export interface RoleCriterion {
   id: string;
   label: string;
   description: string;
+  /**
+   * True when the role cannot be filled without this. A candidate missing an
+   * essential criterion is a materially different situation from one missing a
+   * desirable one, which is why coverage is never reduced to a single score.
+   */
+  required: boolean;
 }
 
 export interface Role {

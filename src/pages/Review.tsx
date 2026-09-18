@@ -1,18 +1,21 @@
-import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { ChevronLeft, MessageCircleQuestionMark } from "lucide-react";
 
+import { CoverageSummary } from "@/components/coverage-summary";
 import { DecisionPanel } from "@/components/decision-panel";
 import { OverrideControl } from "@/components/override-control";
 import { ReplayPanel } from "@/components/replay-panel";
+import { SaveStatus, type SaveState } from "@/components/save-status";
 import SourceDocument from "@/components/source-document";
 import { StatusBadge } from "@/components/status-badge";
 import { REVIEWERS, useEvidenceRecord } from "@/hooks/use-evidence-record";
 import { fetchStoredRecord, generateEvidence } from "@/services/evidence-api";
+import { saveReview } from "@/services/review-api";
 import { cn } from "@/lib/utils";
 import { evidenceRecords } from "@/data/seed";
 import { useRoles } from "@/state/roles-store";
-import type { EvidenceItem, RoleCriterion } from "@/types";
+import type { EvidenceItem, EvidenceRecord, RoleCriterion } from "@/types";
 
 interface CriterionRow {
   criterion: RoleCriterion;
@@ -41,14 +44,20 @@ const Review = () => {
     replaceRecord,
   } = useEvidenceRecord(seededRecord);
 
+  // The compare matrix links here with one criterion already chosen.
+  const [searchParams] = useSearchParams();
+  const requestedCriterionId = searchParams.get("criterion");
+
   const [reviewer, setReviewer] = useState(REVIEWERS[0]);
   const [activeCriterionId, setActiveCriterionId] = useState<string | null>(
-    null,
+    requestedCriterionId,
   );
   const [generating, setGenerating] = useState(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
   const [rejectedCitations, setRejectedCitations] = useState<string[]>([]);
   const [source, setSource] = useState<"seed" | "stored" | "fresh">("seed");
+  const [saveState, setSaveState] = useState<SaveState>("idle");
+  const [saveMessage, setSaveMessage] = useState<string | null>(null);
 
   // Load a stored record if one exists, so a record generated earlier reloads
   // instantly instead of calling the model again. Falls back to the seeded
@@ -61,6 +70,8 @@ const Review = () => {
     setSource("seed");
     setRejectedCitations([]);
     setGenerateError(null);
+    setSaveState("idle");
+    setSaveMessage(null);
 
     fetchStoredRecord(candidateKey).then((stored) => {
       if (cancelled || !stored || stored.evidence.length === 0) return;
@@ -90,12 +101,50 @@ const Review = () => {
     }
   };
 
+  /**
+   * Writes the reviewer's working copy to the store.
+   *
+   * Local state is never rolled back on failure, so nothing the reviewer typed
+   * is lost: the message says plainly what did not reach the store, and the
+   * save can be retried.
+   */
+  const persist = useCallback(async (next: EvidenceRecord | null) => {
+    if (!next) return;
+    setSaveState("saving");
+    setSaveMessage(null);
+    try {
+      const result = await saveReview(next);
+      setSaveState("saved");
+      setSaveMessage(
+        result.auditWarning ??
+          (result.events > 0
+            ? `${result.events} audit ${
+                result.events === 1 ? "event" : "events"
+              } appended.`
+            : "Your overrides and the decision are on the record."),
+      );
+    } catch (error) {
+      setSaveState("error");
+      setSaveMessage((error as Error).message);
+    }
+  }, []);
+
+  const retrySave = useCallback(() => {
+    if (record) void persist(record);
+  }, [persist, record]);
+
+  // A criterion named in the URL wins, so the compare matrix opens on the
+  // column the reviewer clicked. Otherwise the first cited row is selected.
   useEffect(() => {
+    if (requestedCriterionId) {
+      setActiveCriterionId(requestedCriterionId);
+      return;
+    }
     const firstCitable = seededRecord?.evidence.find(
       (e) => e.sourceStartLine > 0,
     );
     setActiveCriterionId(firstCitable?.criterionId ?? null);
-  }, [seededRecord]);
+  }, [seededRecord, requestedCriterionId]);
 
   const rows = useMemo<CriterionRow[]>(() => {
     if (!record) return [];
@@ -118,11 +167,8 @@ const Review = () => {
     ? { start: activeItem.sourceStartLine, end: activeItem.sourceEndLine }
     : null;
 
-  const supportedCount =
-    record?.evidence.filter((e) => e.status === "supported").length ?? 0;
   const unresolvedCount =
     record?.evidence.filter((e) => e.status !== "supported").length ?? 0;
-  const total = role.criteria.length;
 
   if (!candidate) {
     return (
@@ -158,18 +204,14 @@ const Review = () => {
             </h1>
             <p className="text-lg text-muted-foreground">{role.title}</p>
           </div>
-          <div className="mt-4 inline-flex items-center gap-2.5 rounded-full border bg-card px-4 py-1.5">
-            <span
-              className={cn(
-                "h-2 w-2 rounded-full",
-                supportedCount === total ? "bg-emerald-500" : "bg-amber-500",
-              )}
-            />
-            <span className="text-sm font-medium">
-              {supportedCount} of {total} criteria supported
-            </span>
-          </div>
         </header>
+
+        {record && (
+          <CoverageSummary
+            criteria={role.criteria}
+            evidence={record.evidence}
+          />
+        )}
 
         <div className="mt-10 grid items-start gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,440px)]">
           <section className="space-y-8">
@@ -304,9 +346,8 @@ const Review = () => {
                               : isConflicting
                                 ? "border-rose-200 bg-rose-50/60"
                                 : "border-border bg-card",
-                            clickable &&
-                              isActive &&
-                              "border-primary/50 ring-2 ring-primary/15",
+                            isActive &&
+                              "border-primary/60 ring-2 ring-primary/40",
                           )}
                         >
                           {clickable ? (
@@ -354,11 +395,13 @@ const Review = () => {
                               <OverrideControl
                                 currentStatus={item.status}
                                 onOverride={(next, reason) =>
-                                  overrideStatus(
-                                    criterion.id,
-                                    next,
-                                    reason,
-                                    reviewer,
+                                  void persist(
+                                    overrideStatus(
+                                      criterion.id,
+                                      next,
+                                      reason,
+                                      reviewer,
+                                    ),
                                   )
                                 }
                               />
@@ -383,9 +426,9 @@ const Review = () => {
                 unresolvedCount={unresolvedCount}
                 onReviewerChange={setReviewer}
                 onSave={(disposition, reason) =>
-                  saveDecision(disposition, reason, reviewer)
+                  void persist(saveDecision(disposition, reason, reviewer))
                 }
-                onClear={clearDecision}
+                onClear={() => void persist(clearDecision())}
               />
             )}
           </section>
@@ -410,6 +453,16 @@ const Review = () => {
           </section>
         </div>
       </div>
+
+      <SaveStatus
+        state={saveState}
+        message={saveMessage}
+        onRetry={retrySave}
+        onDismiss={() => {
+          setSaveState("idle");
+          setSaveMessage(null);
+        }}
+      />
     </div>
   );
 };

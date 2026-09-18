@@ -2,8 +2,10 @@
  * generate-criteria
  *
  * Takes a pasted job description and asks the model for 3 to 6 hiring criteria.
- * Each criterion carries a kebab-case id, a 2 to 4 word label, and one sentence
- * describing what evidence would satisfy it.
+ * Each criterion carries a kebab-case id, a 2 to 4 word label, one sentence
+ * describing what evidence would satisfy it, and a required flag: true when the
+ * description makes the criterion essential to doing the job, false when it is
+ * only desirable. The flag is a default the reviewer can flip, never a score.
  *
  * Required secrets, shared with generate-evidence:
  *   MODEL_API_URL   model endpoint, base URL is fine, the path is normalised
@@ -57,9 +59,13 @@ function buildPrompt(body: RequestBody): string {
     "4. Each description is ONE sentence saying what evidence in a candidate document would satisfy the criterion.",
     "5. Criteria must be distinct from each other and specific enough to verify against a resume.",
     "6. Only use requirements the job description actually states. Never invent requirements.",
+    "7. Decide how the job description words each criterion and set its required flag accordingly:",
+    "   required true when the description makes it essential - 'must', 'required', 'you will own', 'you will operate', or it is central to the role,",
+    "   required false when the description presents it as an advantage - 'nice to have', 'bonus', 'plus', 'preferred', 'helpful', or a supporting skill.",
+    "8. Read the wording rather than assuming. Most descriptions make some criteria desirable: return a mix when the wording supports it, and never mark everything required.",
     "",
     "Return only JSON in this shape:",
-    '{"criteria":[{"id":"","label":"","description":""}]}',
+    '{"criteria":[{"id":"","label":"","description":"","required":true}]}',
   ].join("\n");
 }
 
@@ -72,7 +78,7 @@ function extractJson(raw: string): unknown {
 }
 
 const SYSTEM_PROMPT =
-  "You return only valid JSON. You describe criteria the job description supports, and you never invent requirements.";
+  "You return only valid JSON. You describe criteria the job description supports, you never invent requirements, and you mark a criterion as required only when the description makes it essential.";
 
 const MAX_TOKENS = 4000;
 const ANTHROPIC_VERSION = "2023-06-01";
@@ -294,6 +300,7 @@ interface Criterion {
   id: string;
   label: string;
   description: string;
+  required: boolean;
 }
 
 const slugify = (value: string): string =>
@@ -306,6 +313,10 @@ const slugify = (value: string): string =>
  * Keeps only usable criteria, derives each id from its label in kebab case,
  * makes ids unique, and caps the list at six. The model is asked for 3 to 6;
  * this is the guard that makes the reply safe to show.
+ *
+ * A missing or non-boolean required flag is returned as true: reading a stated
+ * requirement as optional is the more damaging mistake, and the reviewer sees
+ * the flag and can drop it to desirable in one click.
  */
 function shapeCriteria(raw: unknown): Criterion[] {
   const list = Array.isArray(raw) ? raw : [];
@@ -318,11 +329,15 @@ function shapeCriteria(raw: unknown): Criterion[] {
       id?: unknown;
       label?: unknown;
       description?: unknown;
+      required?: unknown;
     };
     const label = typeof item.label === "string" ? item.label.trim() : "";
     const description =
       typeof item.description === "string" ? item.description.trim() : "";
     if (!label || !description) continue;
+
+    const required =
+      typeof item.required === "boolean" ? item.required : true;
 
     const base =
       slugify(label) ||
@@ -334,7 +349,7 @@ function shapeCriteria(raw: unknown): Criterion[] {
     while (used.has(id)) id = `${base}-${suffix++}`;
     used.add(id);
 
-    out.push({ id, label, description });
+    out.push({ id, label, description, required });
     if (out.length === 6) break;
   }
 
