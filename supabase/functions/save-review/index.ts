@@ -113,6 +113,46 @@ function shapeEvidence(raw: unknown): EvidenceItem[] {
   return out;
 }
 
+/**
+ * Merges a reviewer's changes into the stored evidence.
+ *
+ * A reviewer may change a status and its explanation. A reviewer may NOT change
+ * a citation, and may never set citationVerified, because only the evidence
+ * generator can check a quote against the source document, and this function
+ * never receives the document. So every citation field is taken from the stored
+ * record and the request's values are discarded.
+ *
+ * An item with no stored counterpart cannot have been verified by this service,
+ * so it is kept with citationVerified false and no line numbers. That is also
+ * the correct handling for evidence captured from an interview rather than a
+ * document.
+ */
+function mergeEvidence(
+  stored: EvidenceItem[],
+  incoming: EvidenceItem[],
+): EvidenceItem[] {
+  const byCriterion = new Map(stored.map((item) => [item.criterionId, item]));
+
+  return incoming.map((item) => {
+    const prior = byCriterion.get(item.criterionId);
+
+    if (!prior) {
+      return {
+        ...item,
+        sourceStartLine: 0,
+        sourceEndLine: 0,
+        citationVerified: false,
+      };
+    }
+
+    return {
+      ...prior,
+      status: item.status,
+      explanation: item.explanation || prior.explanation,
+    };
+  });
+}
+
 function shapeEdits(raw: unknown): ReviewerEdit[] {
   if (!Array.isArray(raw)) return [];
   const out: ReviewerEdit[] = [];
@@ -193,7 +233,7 @@ Deno.serve(async (req) => {
 
   const { data: existing, error: readError } = await admin
     .from("evidence_records")
-    .select("reviewer_edits, human_decision")
+    .select("evidence, reviewer_edits, human_decision")
     .eq("id", recordId)
     .maybeSingle();
 
@@ -210,6 +250,11 @@ Deno.serve(async (req) => {
       404,
     );
   }
+
+  // Citations come from the stored record only. The request cannot introduce or
+  // alter a verified citation.
+  const storedEvidence = shapeEvidence(existing.evidence);
+  const mergedEvidence = mergeEvidence(storedEvidence, evidence);
 
   const priorEdits = Array.isArray(existing.reviewer_edits)
     ? (existing.reviewer_edits as { field?: unknown; timestamp?: unknown }[])
@@ -264,7 +309,7 @@ Deno.serve(async (req) => {
   const { error: updateError } = await admin
     .from("evidence_records")
     .update({
-      evidence,
+      evidence: mergedEvidence,
       reviewer_edits: reviewerEdits,
       human_decision: humanDecision,
     })
@@ -296,5 +341,7 @@ Deno.serve(async (req) => {
     }
   }
 
-  return json({ saved: true, events: events.length });
+  // Echo the stored evidence so the client can adopt anything the server
+  // corrected, rather than keeping a local view the store disagrees with.
+  return json({ saved: true, events: events.length, evidence: mergedEvidence });
 });
