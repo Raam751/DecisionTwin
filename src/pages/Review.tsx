@@ -259,7 +259,7 @@ const Review = () => {
 
   const sourceHint =
     source === "seed"
-      ? "A reference record is shown. Generate to draft evidence from this document."
+      ? "A reference record is shown. Generate to draft evidence from this document. Overrides and decisions can only be saved against a generated record."
       : source === "stored"
         ? "Every citation was checked against the source on the server."
         : "Drafted just now, with every citation checked on the server.";

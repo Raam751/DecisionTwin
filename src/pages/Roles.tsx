@@ -182,37 +182,46 @@ const Roles = () => {
                         </p>
                       ) : (
                         <>
-                          <p
-                            className={cn(
-                              "flex items-start gap-2",
-                              coverage.essentialCovered < coverage.essentialTotal
-                                ? "text-ink"
-                                : "text-muted-foreground",
-                            )}
-                          >
-                            <Check
-                              aria-hidden
+                          {coverage.essentialTotal > 0 && (
+                            <p
                               className={cn(
-                                "mt-0.5 h-4 w-4 shrink-0",
-                                coverage.essentialCovered < coverage.essentialTotal
-                                  ? "text-essential"
-                                  : "text-supported",
+                                "flex items-start gap-2",
+                                coverage.essentialCovered <
+                                  coverage.essentialTotal
+                                  ? "text-ink"
+                                  : "text-muted-foreground",
                               )}
-                            />
-                            Essential:{" "}
-                            {coverage.essentialCovered} of{" "}
-                            {coverage.essentialTotal} criteria covered by at
-                            least one candidate
-                          </p>
-                          <p className="flex items-start gap-2 text-muted-foreground">
-                            <Check
-                              aria-hidden
-                              className="mt-0.5 h-4 w-4 shrink-0 text-supported"
-                            />
-                            Desirable: {coverage.desirableCovered} of{" "}
-                            {coverage.desirableTotal} criteria covered by at
-                            least one candidate
-                          </p>
+                            >
+                              <Check
+                                aria-hidden
+                                className={cn(
+                                  "mt-0.5 h-4 w-4 shrink-0",
+                                  coverage.essentialCovered <
+                                    coverage.essentialTotal
+                                    ? "text-essential"
+                                    : "text-supported",
+                                )}
+                              />
+                              Across the candidate pool,{" "}
+                              {coverage.essentialCovered} of{" "}
+                              {coverage.essentialTotal} essential criteria
+                              are supported by at least one candidate —
+                              not necessarily the same candidate.
+                            </p>
+                          )}
+                          {coverage.desirableTotal > 0 && (
+                            <p className="flex items-start gap-2 text-muted-foreground">
+                              <Check
+                                aria-hidden
+                                className="mt-0.5 h-4 w-4 shrink-0 text-supported"
+                              />
+                              Across the candidate pool,{" "}
+                              {coverage.desirableCovered} of{" "}
+                              {coverage.desirableTotal} desirable criteria
+                              are supported by at least one candidate — not
+                              necessarily the same candidate.
+                            </p>
+                          )}
                         </>
                       )}
                     </div>

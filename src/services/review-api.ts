@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { getWorkspaceId } from "@/lib/workspace";
 import type { EvidenceItem, EvidenceRecord } from "@/types";
 
 export interface SaveReviewResult {
@@ -46,6 +47,7 @@ export async function saveReview(
   const { data, error } = await supabase.functions.invoke("save-review", {
     body: {
       recordId: record.id,
+      workspaceId: getWorkspaceId(),
       evidence: record.evidence,
       reviewerEdits: record.reviewerEdits,
       humanDecision: record.humanDecision,
