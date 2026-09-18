@@ -92,6 +92,51 @@ function extractJson(raw: string): unknown {
   return JSON.parse(trimmed.slice(start, end + 1));
 }
 
+const SYSTEM_PROMPT =
+  "You return only valid JSON. You never invent evidence that is not in the source document. You copy quotes verbatim.";
+
+async function postChat(
+  prompt: string,
+  useJsonMode: boolean,
+): Promise<Response> {
+  const url = Deno.env.get("MODEL_API_URL")!;
+  const key = Deno.env.get("MODEL_API_KEY")!;
+  const model = Deno.env.get("MODEL_NAME")!;
+
+  const body: Record<string, unknown> = {
+    model,
+    temperature: 0,
+    messages: [
+      { role: "system", content: SYSTEM_PROMPT },
+      { role: "user", content: prompt },
+    ],
+  };
+  if (useJsonMode) {
+    body.response_format = { type: "json_object" };
+  }
+
+  return await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${key}`,
+    },
+    body: JSON.stringify(body),
+  });
+}
+
+async function readContent(response: Response): Promise<string> {
+  const payload = await response.json();
+  const content = payload?.choices?.[0]?.message?.content;
+  if (typeof content !== "string") throw new Error("unexpected model response");
+  return content;
+}
+
+/**
+ * Calls the model, tolerating two common provider differences:
+ * some models reject response_format, and some wrap JSON in prose. We retry
+ * without JSON mode on a 4xx, and retry once more if parsing fails.
+ */
 async function callModel(prompt: string): Promise<unknown> {
   const url = Deno.env.get("MODEL_API_URL");
   const key = Deno.env.get("MODEL_API_KEY");
@@ -102,35 +147,29 @@ async function callModel(prompt: string): Promise<unknown> {
     );
   }
 
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${key}`,
-    },
-    body: JSON.stringify({
-      model,
-      temperature: 0,
-      response_format: { type: "json_object" },
-      messages: [
-        {
-          role: "system",
-          content:
-            "You return only valid JSON. You never invent evidence that is not in the source document.",
-        },
-        { role: "user", content: prompt },
-      ],
-    }),
-  });
+  let response = await postChat(prompt, true);
 
-  if (!response.ok) {
-    throw new Error(`model returned ${response.status}`);
+  // The model or gateway may not support JSON mode. Fall back rather than fail.
+  if (!response.ok && response.status >= 400 && response.status < 500) {
+    response = await postChat(prompt, false);
   }
 
-  const payload = await response.json();
-  const content = payload?.choices?.[0]?.message?.content;
-  if (typeof content !== "string") throw new Error("unexpected model response");
-  return extractJson(content);
+  if (!response.ok) {
+    const detail = await response.text().catch(() => "");
+    throw new Error(
+      `model returned ${response.status}${detail ? `: ${detail.slice(0, 200)}` : ""}`,
+    );
+  }
+
+  const content = await readContent(response);
+  try {
+    return extractJson(content);
+  } catch {
+    // One retry, since a malformed response is usually not repeated.
+    const retry = await postChat(prompt, false);
+    if (!retry.ok) throw new Error(`model returned ${retry.status} on retry`);
+    return extractJson(await readContent(retry));
+  }
 }
 
 Deno.serve(async (req) => {
