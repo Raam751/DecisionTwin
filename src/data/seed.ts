@@ -18,24 +18,28 @@ export const platformEngineerRole: Role = {
       label: "API ownership",
       description:
         "Owned a service interface end to end, including versioning, deprecation and how consumers were informed.",
+      required: true,
     },
     {
       id: "incident-response",
       label: "Incident response",
       description:
         "Took the lead during production incidents and closed the loop with a written review.",
+      required: true,
     },
     {
       id: "production-kubernetes",
       label: "Production Kubernetes",
       description:
         "Operated Kubernetes in production, including upgrades, capacity planning and scaling behaviour.",
+      required: true,
     },
     {
       id: "data-modelling",
       label: "Data modelling",
       description:
         "Designed schemas for new services and reasoned about how the model would be queried.",
+      required: false,
     },
   ],
 };

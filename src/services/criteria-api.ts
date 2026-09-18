@@ -43,11 +43,17 @@ export async function generateCriteria(
       id?: unknown;
       label?: unknown;
       description?: unknown;
+      required?: unknown;
     };
     const label = typeof item.label === "string" ? item.label.trim() : "";
     const description =
       typeof item.description === "string" ? item.description.trim() : "";
     if (!label) continue;
+
+    // Essential unless the model says otherwise. Treating an unknown as
+    // desirable would quietly downgrade a real requirement; the reviewer can
+    // always toggle it down, and that choice is theirs to make.
+    const required = typeof item.required === "boolean" ? item.required : true;
 
     const base = slugify(label) || `criterion-${criteria.length + 1}`;
     let id = base;
@@ -55,7 +61,7 @@ export async function generateCriteria(
     while (used.has(id)) id = `${base}-${suffix++}`;
     used.add(id);
 
-    criteria.push({ id, label, description });
+    criteria.push({ id, label, description, required });
   }
 
   if (criteria.length === 0) {
