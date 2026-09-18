@@ -51,6 +51,8 @@ export async function saveReview(
       evidence: record.evidence,
       reviewerEdits: record.reviewerEdits,
       humanDecision: record.humanDecision,
+      currentStage: record.currentStage,
+      decisions: record.decisions,
     },
   });
 

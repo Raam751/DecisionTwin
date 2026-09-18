@@ -57,19 +57,19 @@ After Stage 1 implementation I will stop and report before doing Stage 2.
 No em dashes or en dashes in code, copy, comments, or placeholders.
 
 ## Implementation checklist
-- [ ] Add the optional stage types to `src/types.ts`.
-- [ ] Create `src/lib/stages.ts` with the fixed stage list and helpers.
-- [ ] Run the additive migration on `evidence_records`.
-- [ ] Update `save-review` for stage fields, the composite evidence key, and the stage-advance event; redeploy.
-- [ ] Update `evidence-api.ts` and `review-api.ts` for `currentStage` and `decisions`.
-- [ ] Update the `useEvidenceRecord` hook: staged decisions, per-stage interview answers, and `advanceStage`.
-- [ ] Update the review screen: current stage, per-stage interview answers, decision history, advance action; label updates in `InterviewAnswerControl` and `DecisionPanel`.
-- [ ] Confirm no em/en dashes in changed copy and code.
+- [x] Add the optional stage types to `src/types.ts`.
+- [x] Create `src/lib/stages.ts` with the fixed stage list and helpers.
+- [x] Run the additive migration on `evidence_records`.
+- [x] Update `save-review` for stage fields, the composite evidence key, and the stage-advance event; redeploy.
+- [x] Update `evidence-api.ts` and `review-api.ts` for `currentStage` and `decisions`.
+- [x] Update the `useEvidenceRecord` hook: staged decisions, per-stage interview answers, and `advanceStage`.
+- [x] Update the review screen: current stage, per-stage interview answers, decision history, advance action; label updates in `InterviewAnswerControl` and `DecisionPanel`.
+- [x] Confirm no em/en dashes in changed copy and code.
 
 ## Verification checklist
-- [ ] Run `pnpm lint`, `pnpm exec tsc --noEmit`, `pnpm run build`, `pnpm run build:prod --manifest`, and `node scripts/verify-citations.mjs` (must report 15 passed, 0 failures).
-- [ ] Confirm the migration applied and the columns tolerate existing rows; confirm the events CHECK allows "decision".
-- [ ] Browser-verify the review screen with intercepted stored records: current stage shown; a document item stays beside one interview answer per stage, newest first, labelled; recording an answer in Round 2 keeps the Round 1 answer; decisions history shows prior stages; advance is disabled without an `Advance to interview` decision for the current stage and enabled after it; advancing changes the stage without touching evidence; no model call on load.
-- [ ] Confirm `humanDecision` stays the last `decisions` entry after save and clear.
-- [ ] Confirm no `save-workspace`/record writes happened as a test, and no page errors.
-- [ ] State clearly which items were verified by execution and which only by reading code.
+- [x] Run `pnpm lint`, `pnpm exec tsc --noEmit`, `pnpm run build`, `pnpm run build:prod --manifest`, and `node scripts/verify-citations.mjs` (must report 15 passed, 0 failures).
+- [x] Confirm the migration applied and the columns tolerate existing rows; confirm the events CHECK allows "decision".
+- [x] Browser-verify the review screen with intercepted stored records: current stage shown; a document item stays beside one interview answer per stage, newest first, labelled; recording an answer in Round 2 keeps the Round 1 answer; decisions history shows prior stages; advance is disabled without an `Advance to interview` decision for the current stage and enabled after it; advancing changes the stage without touching evidence; no model call on load.
+- [x] Confirm `humanDecision` stays the last `decisions` entry after save and clear.
+- [x] Confirm no `save-workspace`/record writes happened as a test, and no page errors.
+- [x] State clearly which items were verified by execution and which only by reading code.

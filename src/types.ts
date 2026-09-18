@@ -51,6 +51,11 @@ export interface EvidenceItem {
    * citation-verified, because there is no document to check them against.
    */
   recordedAtInterview?: boolean;
+  /**
+   * The hiring stage this answer was captured in, for example "Round 1".
+   * Present on interview-sourced items only.
+   */
+  stage?: string;
   /** Who captured the answer and when. Present on interview-sourced items. */
   recordedBy?: string;
   recordedAt?: string;
@@ -68,6 +73,8 @@ export interface ReviewerEdit {
   reason: string;
   reviewer: string;
   timestamp: string;
+  /** The hiring stage the edit happened in, when the action was stage-aware. */
+  stage?: string;
 }
 
 export interface HumanDecision {
@@ -75,6 +82,11 @@ export interface HumanDecision {
   reason: string;
   reviewerName: string;
   timestamp: string;
+}
+
+/** A human decision recorded for a specific hiring stage. */
+export interface StageDecision extends HumanDecision {
+  stage: string;
 }
 
 export interface ReplayMetadata {
@@ -94,4 +106,13 @@ export interface EvidenceRecord {
   reviewerEdits: ReviewerEdit[];
   humanDecision: HumanDecision | null;
   replayMetadata: ReplayMetadata;
+  /**
+   * The hiring stage the candidate is in now. Missing means Screening.
+   */
+  currentStage?: string;
+  /**
+   * One decision per stage, most recent last. Missing means none recorded.
+   * When a decision exists, humanDecision mirrors the last entry.
+   */
+  decisions?: StageDecision[];
 }

@@ -9,6 +9,7 @@ import type {
   ReplayMetadata,
   ReviewerEdit,
   Role,
+  StageDecision,
 } from "@/types";
 
 /**
@@ -42,6 +43,8 @@ interface StoredRow {
   reviewer_edits: ReviewerEdit[] | null;
   human_decision: HumanDecision | null;
   replay_metadata: ReplayMetadata;
+  current_stage?: string | null;
+  decisions?: StageDecision[] | null;
 }
 
 /**
@@ -78,6 +81,8 @@ export async function fetchStoredRecord(
       reviewerEdits: row.reviewer_edits ?? [],
       humanDecision: row.human_decision ?? null,
       replayMetadata: row.replay_metadata,
+      currentStage: row.current_stage ?? undefined,
+      decisions: row.decisions ?? undefined,
     };
   } catch {
     return null;

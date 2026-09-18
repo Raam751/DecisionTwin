@@ -3394,6 +3394,8 @@ export type Database = {
         Row: {
           candidate_id: string
           created_at: string
+          current_stage: string | null
+          decisions: Json
           evidence: Json
           human_decision: Json | null
           id: string
@@ -3407,6 +3409,8 @@ export type Database = {
         Insert: {
           candidate_id: string
           created_at?: string
+          current_stage?: string | null
+          decisions?: Json
           evidence?: Json
           human_decision?: Json | null
           id: string
@@ -3420,6 +3424,8 @@ export type Database = {
         Update: {
           candidate_id?: string
           created_at?: string
+          current_stage?: string | null
+          decisions?: Json
           evidence?: Json
           human_decision?: Json | null
           id?: string

@@ -44,6 +44,10 @@ interface RequestBody {
   evidence?: unknown;
   reviewerEdits?: unknown;
   humanDecision?: unknown;
+  /** The hiring stage the candidate is in now. Optional for old clients. */
+  currentStage?: unknown;
+  /** One decision per stage, most recent last. Optional for old clients. */
+  decisions?: unknown;
 }
 
 interface EvidenceItem {
@@ -57,6 +61,8 @@ interface EvidenceItem {
   recordedAtInterview: boolean;
   recordedBy: string;
   recordedAt: string;
+  /** The hiring stage this interview item was captured in, if any. */
+  stage?: string;
 }
 
 interface ReviewerEdit {
@@ -73,6 +79,10 @@ interface HumanDecision {
   reason: string;
   reviewerName: string;
   timestamp: string;
+}
+
+interface StageDecision extends HumanDecision {
+  stage: string;
 }
 
 interface ReviewerEvent {
@@ -119,11 +129,28 @@ function shapeEvidence(raw: unknown): EvidenceItem[] {
       recordedAtInterview: item.recordedAtInterview === true,
       recordedBy: asText(item.recordedBy),
       recordedAt: asText(item.recordedAt),
+      stage: asText(item.stage) || undefined,
     });
   }
 
   return out;
 }
+
+/**
+ * The identity of an evidence item in the stored record.
+ *
+ * There is exactly one document item per criterion, and one interview item per
+ * criterion per hiring stage. This key is what lets a Round 2 answer keep the
+ * Round 1 answer for the same criterion instead of collapsing them.
+ */
+const evidenceKey = (item: {
+  criterionId: string;
+  recordedAtInterview?: boolean;
+  stage?: string;
+}): string =>
+  item.recordedAtInterview
+    ? `${item.criterionId}|interview:${item.stage ?? ""}`
+    : `${item.criterionId}|document`;
 
 /**
  * Merges a reviewer's changes into the stored evidence.
@@ -150,10 +177,11 @@ function mergeEvidence(
   stored: EvidenceItem[],
   incoming: EvidenceItem[],
 ): EvidenceItem[] {
-  const byCriterion = new Map(stored.map((item) => [item.criterionId, item]));
+  const byKey = new Map(stored.map((item) => [evidenceKey(item), item]));
 
   return incoming.map((item) => {
-    const prior = byCriterion.get(item.criterionId);
+    const key = evidenceKey(item);
+    const prior = byKey.get(key);
 
     if (item.recordedAtInterview) {
       return {
@@ -167,6 +195,7 @@ function mergeEvidence(
         recordedAtInterview: true,
         recordedBy: item.recordedBy || prior?.recordedBy || "",
         recordedAt: item.recordedAt || prior?.recordedAt || "",
+        stage: item.stage || prior?.stage || "",
       };
     }
 
@@ -226,6 +255,32 @@ function shapeDecision(raw: unknown): HumanDecision | null {
   };
 }
 
+/**
+ * Shapes the per-stage decision history, preserving its order. An entry without
+ * a disposition or a named reviewer is not a real decision and is dropped.
+ */
+function shapeStageDecisions(raw: unknown): StageDecision[] {
+  if (!Array.isArray(raw)) return [];
+  const out: StageDecision[] = [];
+
+  for (const entry of raw) {
+    if (!entry || typeof entry !== "object") continue;
+    const decision = entry as Record<string, unknown>;
+    const disposition = asText(decision.disposition);
+    const reviewerName = asText(decision.reviewerName);
+    if (!disposition || !reviewerName) continue;
+    out.push({
+      disposition,
+      reason: asText(decision.reason),
+      reviewerName,
+      timestamp: asText(decision.timestamp) || new Date().toISOString(),
+      stage: asText(decision.stage),
+    });
+  }
+
+  return out;
+}
+
 /** Two edits are the same action when they touch one field at one instant. */
 const editKey = (edit: { field?: unknown; timestamp?: unknown }): string =>
   `${asText(edit?.field)}|${asText(edit?.timestamp)}`;
@@ -265,12 +320,17 @@ Deno.serve(async (req) => {
   const evidence = shapeEvidence(body.evidence);
   const reviewerEdits = shapeEdits(body.reviewerEdits);
   const humanDecision = shapeDecision(body.humanDecision);
+  const stageDecisions = shapeStageDecisions(body.decisions);
+  const incomingStage =
+    typeof body?.currentStage === "string" ? body.currentStage.trim() : null;
 
   const admin = createClient(supabaseUrl, serviceKey);
 
   const { data: existing, error: readError } = await admin
     .from("evidence_records")
-    .select("evidence, reviewer_edits, human_decision")
+    .select(
+      "evidence, reviewer_edits, human_decision, current_stage, decisions",
+    )
     .eq("id", recordId)
     .eq("workspace_id", workspaceId)
     .maybeSingle();
@@ -343,14 +403,37 @@ Deno.serve(async (req) => {
     });
   }
 
+  // A stage advance is a human action: name the stage moved from and to, and
+  // carry the reason and reviewer of the decision that justified it.
+  const priorStage =
+    typeof existing.current_stage === "string" ? existing.current_stage : null;
+  if (incomingStage !== null && priorStage !== incomingStage) {
+    events.push({
+      event_type: "decision",
+      field: "currentStage",
+      previous_value: priorStage ?? "",
+      new_value: incomingStage,
+      reason:
+        humanDecision?.reason || "Stage advanced by the reviewer.",
+      reviewer: humanDecision?.reviewerName || "",
+    });
+  }
+
+  // Only the two fields the review screen owns are ever replaced outright.
+  const patch: Record<string, unknown> = {
+    evidence: mergedEvidence,
+    reviewer_edits: reviewerEdits,
+    human_decision: humanDecision,
+  };
+  // Stage fields are written only when the client sends them, so a client
+  // built before stages can never wipe stage data by saving without it.
+  if (Array.isArray(body?.decisions)) patch.decisions = stageDecisions;
+  if (incomingStage !== null) patch.current_stage = incomingStage;
+
   // updated_at is maintained by the touch trigger on the table.
   const { error: updateError } = await admin
     .from("evidence_records")
-    .update({
-      evidence: mergedEvidence,
-      reviewer_edits: reviewerEdits,
-      human_decision: humanDecision,
-    })
+    .update(patch)
     .eq("id", recordId)
     .eq("workspace_id", workspaceId);
 

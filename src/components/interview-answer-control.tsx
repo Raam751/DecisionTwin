@@ -15,20 +15,24 @@ const STATUS_OPTIONS: { value: EvidenceStatus; label: string }[] = [
 interface InterviewAnswerControlProps {
   question: string;
   reviewer: string;
+  stage: string;
   onRecord: (answer: string, status: EvidenceStatus, reviewer: string) => void;
 }
 
 /**
- * Lets the reviewer capture what the candidate said in the interview.
+ * Lets the reviewer capture what the candidate said in the interview for the
+ * current hiring stage.
  *
- * The answer becomes interview-sourced evidence: the candidate's words are the
- * quote, the status is the reviewer's choice, and who captured it and when is
- * recorded alongside. Because there is no document to check it against, it can
- * never be citation-verified and never carries line numbers.
+ * The answer becomes interview-sourced evidence for that stage: the candidate's
+ * words are the quote, the status is the reviewer's choice, and who captured
+ * it, when and in which stage is recorded alongside. Because there is no
+ * document to check it against, it can never be citation-verified and never
+ * carries line numbers.
  */
 export function InterviewAnswerControl({
   question,
   reviewer,
+  stage,
   onRecord,
 }: InterviewAnswerControlProps) {
   const [answer, setAnswer] = useState("");
@@ -57,7 +61,7 @@ export function InterviewAnswerControl({
             className="mt-0.5 h-4 w-4 shrink-0 text-uncertain"
           />
           <div className="min-w-0">
-            <p className="eyebrow text-uncertain">Asked at interview</p>
+            <p className="eyebrow text-uncertain">Asked at interview · {stage}</p>
             <p className="mt-1.5 text-sm leading-relaxed text-ink">
               {question}
             </p>
