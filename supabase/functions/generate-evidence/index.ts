@@ -247,15 +247,29 @@ function resolveUrl(protocol: Protocol): string {
   return raw.endsWith("/v1") ? `${raw}/chat/completions` : `${raw}/v1/chat/completions`;
 }
 
+/**
+ * How the credential is presented. Gateways differ, and sending the wrong
+ * combination can fail even with a valid key: a gateway that validates the
+ * Authorization header as a JWT will reject a plain API key sent that way.
+ */
+type AuthScheme = "x-api-key" | "bearer" | "both";
+
 interface CallOptions {
   /** OpenAI JSON mode, or Anthropic assistant prefill. Both force JSON. */
   forceJson: boolean;
+  authScheme: AuthScheme;
+}
+
+function authHeaders(scheme: AuthScheme, key: string): Record<string, string> {
+  if (scheme === "x-api-key") return { "x-api-key": key };
+  if (scheme === "bearer") return { Authorization: `Bearer ${key}` };
+  return { "x-api-key": key, Authorization: `Bearer ${key}` };
 }
 
 async function postModel(
   prompt: string,
   protocol: Protocol,
-  { forceJson }: CallOptions,
+  { forceJson, authScheme }: CallOptions,
 ): Promise<Response> {
   const key = Deno.env.get("MODEL_API_KEY")!;
   const model = Deno.env.get("MODEL_NAME")!;
@@ -272,10 +286,8 @@ async function postModel(
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-api-key": key,
         "anthropic-version": ANTHROPIC_VERSION,
-        // Some gateways proxy to Anthropic and expect a bearer token instead.
-        Authorization: `Bearer ${key}`,
+        ...authHeaders(authScheme, key),
       },
       body: JSON.stringify({
         model,
@@ -302,7 +314,7 @@ async function postModel(
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${key}`,
+      ...authHeaders(authScheme, key),
     },
     body: JSON.stringify(body),
   });
@@ -336,7 +348,9 @@ async function readContent(
  * rejects forced JSON, and a model that wraps JSON in prose. Falls back once on
  * a 4xx, then once more if parsing fails.
  */
-async function callModel(prompt: string): Promise<unknown> {
+async function callModel(
+  prompt: string,
+): Promise<{ parsed: unknown; authScheme: AuthScheme; forcedJson: boolean }> {
   const url = Deno.env.get("MODEL_API_URL");
   const key = Deno.env.get("MODEL_API_KEY");
   const model = Deno.env.get("MODEL_NAME");
@@ -347,32 +361,50 @@ async function callModel(prompt: string): Promise<unknown> {
   }
 
   const protocol = resolveProtocol();
-  let options: CallOptions = { forceJson: true };
-  let response = await postModel(prompt, protocol, options);
+  const forced = Deno.env.get("MODEL_AUTH_SCHEME")?.toLowerCase().trim();
+  const schemes: AuthScheme[] =
+    forced === "x-api-key" || forced === "bearer" || forced === "both"
+      ? [forced]
+      : protocol === "anthropic"
+        ? ["x-api-key", "bearer", "both"]
+        : ["bearer", "x-api-key", "both"];
 
-  if (!response.ok && response.status >= 400 && response.status < 500) {
-    options = { forceJson: false };
-    response = await postModel(prompt, protocol, options);
+  const attempts: string[] = [];
+
+  for (const authScheme of schemes) {
+    for (const forceJson of [true, false]) {
+      const options: CallOptions = { forceJson, authScheme };
+      const response = await postModel(prompt, protocol, options);
+
+      if (response.ok) {
+        const content = await readContent(response, protocol, options);
+        try {
+          return { parsed: extractJson(content), authScheme, forcedJson: forceJson };
+        } catch {
+          // Malformed JSON. Try once more without forcing, then give up.
+          if (!forceJson) {
+            attempts.push(`${authScheme}/json=${forceJson}: unparseable response`);
+            break;
+          }
+          continue;
+        }
+      }
+
+      const detail = await response.text().catch(() => "");
+      attempts.push(
+        `${authScheme}/json=${forceJson}: ${response.status}${
+          detail ? ` ${detail.slice(0, 160)}` : ""
+        }`,
+      );
+
+      // An auth failure will not be fixed by changing the body shape.
+      if (response.status === 401 || response.status === 403) break;
+    }
   }
 
-  if (!response.ok) {
-    const detail = await response.text().catch(() => "");
-    throw new Error(
-      `model returned ${response.status} from ${resolveUrl(protocol)} using the ${protocol} protocol${
-        detail ? `: ${detail.slice(0, 300)}` : ""
-      }`,
-    );
-  }
-
-  const content = await readContent(response, protocol, options);
-  try {
-    return extractJson(content);
-  } catch {
-    const retryOptions: CallOptions = { forceJson: false };
-    const retry = await postModel(prompt, protocol, retryOptions);
-    if (!retry.ok) throw new Error(`model returned ${retry.status} on retry`);
-    return extractJson(await readContent(retry, protocol, retryOptions));
-  }
+  throw new Error(
+    `model call failed at ${resolveUrl(protocol)} using the ${protocol} protocol. Attempts: ${attempts.join(" | ")}`,
+  );
 }
 
 Deno.serve(async (req) => {
@@ -398,12 +430,17 @@ Deno.serve(async (req) => {
 
   const prompt = buildPrompt(body);
 
-  let parsed: {
+  type ModelPayload = {
     evidence?: EvidenceItem[];
     interviewQuestions?: { criterionId: string; question: string }[];
   };
+
+  let parsed: ModelPayload;
+  let authScheme: AuthScheme;
   try {
-    parsed = (await callModel(prompt)) as typeof parsed;
+    const result = await callModel(prompt);
+    parsed = result.parsed as ModelPayload;
+    authScheme = result.authScheme;
   } catch (error) {
     return json({ error: `model call failed: ${(error as Error).message}` }, 502);
   }
@@ -479,5 +516,11 @@ Deno.serve(async (req) => {
     }
   }
 
-  return json({ record, rejectedCitations: rejected, persisted: body.persist !== false });
+  return json({
+    record,
+    rejectedCitations: rejected,
+    persisted: body.persist !== false,
+    // Which credential form the gateway accepted. Pin it with MODEL_AUTH_SCHEME.
+    authScheme,
+  });
 });
