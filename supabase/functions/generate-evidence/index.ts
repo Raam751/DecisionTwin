@@ -10,10 +10,16 @@
  *   MODEL_API_KEY   credential for that endpoint
  *   MODEL_NAME      model identifier
  * Optional:
- *   MODEL_PROTOCOL  "anthropic" or "openai". Auto-detected when unset:
- *                   a model name containing "claude" uses the Anthropic
- *                   Messages protocol, everything else uses OpenAI-compatible
- *                   chat completions.
+ *   MODEL_PROTOCOL      "anthropic" or "openai". Auto-detected when unset:
+ *                       a model name containing "claude" uses the Anthropic
+ *                       Messages protocol, everything else uses
+ *                       OpenAI-compatible chat completions.
+ *   MODEL_AUTH_SCHEME   "x-api-key", "bearer" or "both". Pins the credential
+ *                       form once you know which one the gateway accepts,
+ *                       instead of trying each in turn.
+ *   MODEL_EXTRA_HEADERS JSON object of additional headers, for gateways that
+ *                       require project attribution or similar. Example:
+ *                       {"x-project-id":"abc123"}
  * Provided automatically by Supabase:
  *   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
  *
@@ -266,6 +272,27 @@ function authHeaders(scheme: AuthScheme, key: string): Record<string, string> {
   return { "x-api-key": key, Authorization: `Bearer ${key}` };
 }
 
+/**
+ * Extra headers some gateways require, such as project attribution. Supplied as
+ * a JSON object in MODEL_EXTRA_HEADERS so a new requirement never needs a code
+ * change. Invalid JSON is ignored rather than breaking the call.
+ */
+function extraHeaders(): Record<string, string> {
+  const raw = Deno.env.get("MODEL_EXTRA_HEADERS");
+  if (!raw) return {};
+  try {
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+    const out: Record<string, string> = {};
+    for (const [name, value] of Object.entries(parsed)) {
+      if (typeof value === "string") out[name] = value;
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
+
 async function postModel(
   prompt: string,
   protocol: Protocol,
@@ -287,6 +314,7 @@ async function postModel(
       headers: {
         "Content-Type": "application/json",
         "anthropic-version": ANTHROPIC_VERSION,
+        ...extraHeaders(),
         ...authHeaders(authScheme, key),
       },
       body: JSON.stringify({
@@ -314,6 +342,7 @@ async function postModel(
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      ...extraHeaders(),
       ...authHeaders(authScheme, key),
     },
     body: JSON.stringify(body),
