@@ -1,72 +1,50 @@
-# Candidate intake: auto name, PDF upload with mandatory line confirmation
+# Condense extracted resume lines
 
 ## Context
-Two intake improvements on `/candidates/new`, plus the standing branch rule.
+PDF and text extraction can produce a very long numbered list (many bullet lines, achievements, education details). The reviewer wants a shorter, factual list covering roles, responsibilities, notable achievements, and an education summary, condensed automatically right after extraction, with the mandatory confirmation step still in place.
 
-**Branch state.** The current branch is already `main`. HEAD includes every change from `github/main` (`bbfde74`, including the workspace-scoping review fixes) unchanged, with the approved landing and redesign work on top. Git mutations such as pull, reset, merge and checkout are framework-managed and rejected in this workspace, so no reset was performed and nothing on main that I did not write was reverted. The workspace-scoping fix in `save-review` remains intact and is not touched.
-
-**1. Auto-extract the candidate name.** When resume text is present, a user-initiated action calls a new edge function that reads the candidate name from the text and prefills the name field, leaving it editable. The function copies protocol handling, the auth scheme ladder, URL normalisation, CORS, and JSON extraction from `generate-criteria` exactly. No model call ever runs on page load or mount; the trigger is always a reviewer action, honoring the hard invariant.
-
-**2. PDF upload.** Upload one or more `.pdf` or `.txt` files. Text is extracted in the browser, one file at a time, with per-file progress. After extraction the reviewer always sees the numbered lines and must edit, merge, split, or delete them and confirm before anything is saved. Extraction that is empty (scanned image, no text layer), very thin, or fragmented is clearly warned about, with the paste path offered instead. The existing paste-text path keeps working exactly as it is today.
+The condense call runs only inside the existing upload flow (a user action), so the invariant that no model call runs on page load or mount stays intact.
 
 ## Approach
+Reuse the established pattern from `extract-candidate-name`: a self-contained edge function copying `generate-criteria` protocol handling exactly, a thin client service, and wiring inside the existing processing effect in `NewCandidate.tsx`.
 
-### New edge function `supabase/functions/extract-candidate-name/index.ts`
-Copy `generate-criteria` structure verbatim for: `cors`, `json`, `extractJson`, protocol resolution, URL normalisation, `authHeaders`, `extraHeaders`, `postModel`, `readContent`, `callModel`, and the `Deno.serve` handler shape. Only the request body, prompt, and response shaping differ:
+### New edge function `supabase/functions/condense-resume/index.ts`
+- Copy `generate-criteria` structure verbatim for CORS, JSON helpers, protocol resolution, URL normalisation, auth ladder, `postModel`, `readContent`, `callModel`, and the `Deno.serve` handler.
 - Request body: `{ resumeText: string }`.
-- Prompt: return the candidate's full name as it appears at the top of the resume; return `null` when no name is present.
-- Output JSON: `{"name": string | null}`.
-- Shaping: trim the name, cap length, empty string when unusable.
-- Deploy with `supabase_deploy_edge_function` (load `enter_cloud` first for conventions).
+- Prompt rules: keep factual, short, standalone lines covering job titles, companies, responsibilities, notable achievements, and a short education summary. Drop contact details, dates lists, verbose bullets, repeated content. Return 8 to 15 lines, name on the first line.
+- Output JSON: `{"lines": string[]}`.
+- Shaping: trim each line, drop empty lines, cap at 15, reject fewer than 2 usable lines.
+- Deploy with `supabase_deploy_edge_function`.
 
-### Client service `src/services/candidate-name-api.ts`
-Mirror `criteria-api.ts`: `invoke("extract-candidate-name", { body: { resumeText } })`, defensive shape check, `suggestCandidateName(resumeText): Promise<string>`.
+### Client service `src/services/condense-api.ts`
+Mirror `candidate-name-api.ts`: `condenseResume(resumeText): Promise<string[]>` with defensive shape checks.
 
-### PDF text extraction `src/services/pdf-extract.ts`
-- Add `pdfjs-dist` as a dependency. Import it with `await import("pdfjs-dist")` inside the extraction path only, so it never joins the initial bundle. Set `GlobalWorkerOptions.workerSrc` from `new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url)`.
-- `extractPdfText(file, onProgress)`: iterate pages, call `getTextContent()`, join items with spaces and newlines from `hasEOL`, report `page X of N` per page.
-- `readTextFile(file)`: plain `file.text()`.
-- Return the raw extracted string; line splitting happens in the editor.
-
-### Numbered line confirmation editor `src/components/line-editor.tsx`
-- Input: `DocumentLine[]`, `onChange(lines)`.
-- Each row shows the line number plus a textarea for the text.
-- Actions per row: edit text, merge into the previous line, split at the textarea caret, delete.
-- Any change renumbers lines from 1. Empty lines are dropped on save and on renumber, matching the existing paste behavior.
-- Accessible labels and keyboard focus are preserved.
-
-### Page rewrite `src/pages/NewCandidate.tsx`
-Keep the existing paste path exactly as-is (name field, resume textarea, read-only numbered preview, direct save), and add:
-- A "Suggest name from resume" action enabled when text is present (paste text, or the current file's extracted text). Loading and error states, prefills the shared name input, always editable.
-- A file dropzone accepting `.pdf` and `.txt`, multiple files.
-- A queue of chosen files processed one at a time. Per-file status: queued, extracting with progress, ready for confirmation, saved, failed, no readable text.
-- After extraction the line editor appears for that file with its numbered lines. The reviewer edits, merges, splits, deletes, then presses "Save candidate" which calls the existing `addCandidate` store action. Only then does the next file start. Nothing is saved before this confirmation.
-- Quality warnings with thresholds:
-  - zero lines: "This file has no readable text. It may be a scanned image. Paste the text instead." with an explicit paste hint.
-  - fewer than 3 lines: "Very little text was extracted."
-  - majority of lines are one or two words: "Lines look fragmented. Merge them into full sentences."
-- Each saved candidate gets its own id via `crypto.randomUUID`, roleId from the active role, documentTitle "Resume".
-
-### Unchanged behavior
-Protected files (`scripts/`, `src/data/seed.ts`, `src/types.ts`, `generate-evidence`, `save-review`, `save-workspace`) are not touched. Reason minimums (5 for override, 10 for decision), `citationVerified` server-only, interview evidence never verified, `?criterion=` deep links, and `save-review` workspace scoping all stay as-is.
+### Page wiring `src/pages/NewCandidate.tsx`
+- After extraction produces raw lines inside the processing effect, if `rawLines.length > 15`, set the per-file progress label to "Condensing with AI" and call `condenseResume`. Use the condensed lines when returned and usable.
+- On condense failure (error or unusable reply), fall back to the raw extracted lines and set a soft note on the file ("Could not condense this file. The raw lines are shown; edit them before saving."). The file still reaches the ready state and the mandatory confirmation editor, so an upload is never blocked by the model.
+- Add `condenseNote: string | null` to `IntakeFile`; render it in the confirmation panel.
+- Short files (15 lines or fewer) skip the model call and keep the raw lines unchanged.
+- The reviewer still edits, merges, splits, deletes, and confirms before anything is saved.
 
 ### Copy rule
-No em dashes or en dashes in any new code, copy, comments, or placeholders. Use commas, colons, full stops, or the word "to". Existing files being kept are not rewritten solely to strip dashes.
+No em dashes or en dashes in any new code, copy, or comments.
+
+### Protected and unchanged
+`scripts/`, `src/data/seed.ts`, `src/types.ts`, `generate-evidence`, `save-review`, `save-workspace` remain untouched. Reason minimums, citation verification, deep links, and workspace scoping are untouched.
 
 ## Implementation checklist
-- [x] Add `pdfjs-dist` dependency.
-- [x] Create `supabase/functions/extract-candidate-name/index.ts` copying `generate-criteria` protocol handling exactly; deploy it.
-- [x] Create `src/services/candidate-name-api.ts` mirroring `criteria-api.ts`.
-- [x] Create `src/services/pdf-extract.ts` with dynamic `pdfjs-dist` import, worker setup, per-page progress, and text-file reading.
-- [x] Create `src/components/line-editor.tsx` supporting edit, merge, split at caret, delete, and renumbering.
-- [x] Rewrite `src/pages/NewCandidate.tsx`: unchanged paste path, suggest-name action, file queue with one-at-a-time processing and per-file progress, mandatory confirmation, quality warnings, paste fallback for no-text files.
-- [x] Confirm no em/en dashes anywhere in new code and copy.
-- [x] Keep protected files untouched; verify `save-review` and `generate-evidence` byte-identical to `github/main`.
+- [ ] Create and deploy `supabase/functions/condense-resume/index.ts` copying `generate-criteria` protocol handling exactly.
+- [ ] Create `src/services/condense-api.ts` mirroring `candidate-name-api.ts`.
+- [ ] Wire auto-condensing into the `NewCandidate.tsx` processing effect with progress label, fallback to raw lines, and a soft warning note.
+- [ ] Add the condense note to the confirmation panel UI.
+- [ ] Confirm no em/en dashes in new code and copy.
 
 ## Verification checklist
-- [x] Run `pnpm lint`, `pnpm exec tsc --noEmit`, `pnpm run build`, `pnpm run build:prod --manifest`.
-- [x] Execute a browser test: paste path still saves with name plus text; no model call on mount (observe network); suggest-name only fires on click; name stays editable.
-- [x] Execute upload tests with a crafted text-layer PDF, a plain `.txt`, and a scanned-image PDF (image only, no text): per-file progress, line editor confirmation, merge/split/delete renumbering, no-text warning with paste fallback, nothing saved before confirm.
-- [x] Confirm multiple-file processing is sequential and each confirmed candidate appears in the workspace.
-- [x] Confirm the new function deploys and is reachable; note whether the model call itself was execution-tested or only code-inspected.
-- [x] State clearly which items were verified by execution and which only by reading code.
+- [ ] Run `pnpm lint`, `pnpm exec tsc --noEmit`, `pnpm run build`, and `pnpm run build:prod --manifest`.
+- [ ] Browser-test a long PDF (more than 15 lines) with a stubbed condense reply: fewer condensed lines appear, numbered from 1, confirmation still required.
+- [ ] Browser-test condense failure: raw lines shown, warning note visible, file still ready for confirmation.
+- [ ] Browser-test a short file (15 lines or fewer): no condense call fires, raw lines kept.
+- [ ] Confirm no page errors and no `save-workspace` call without explicit confirmation.
+- [ ] Exercise the deployed function with one real call and report the outcome; redeploy after any fix.
+- [ ] Run the strict production audit and classify the new dynamic module; retain known pre-existing warnings.
+- [ ] State clearly which items were verified by execution and which only by reading code.
