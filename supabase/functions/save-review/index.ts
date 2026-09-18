@@ -48,6 +48,9 @@ interface EvidenceItem {
   sourceEndLine: number;
   explanation: string;
   citationVerified: boolean;
+  recordedAtInterview: boolean;
+  recordedBy: string;
+  recordedAt: string;
 }
 
 interface ReviewerEdit {
@@ -107,6 +110,9 @@ function shapeEvidence(raw: unknown): EvidenceItem[] {
       explanation:
         typeof item.explanation === "string" ? item.explanation : "",
       citationVerified: item.citationVerified === true,
+      recordedAtInterview: item.recordedAtInterview === true,
+      recordedBy: asText(item.recordedBy),
+      recordedAt: asText(item.recordedAt),
     });
   }
 
@@ -122,6 +128,13 @@ function shapeEvidence(raw: unknown): EvidenceItem[] {
  * never receives the document. So every citation field is taken from the stored
  * record and the request's values are discarded.
  *
+ * Interview-sourced items are the one deliberate exception, and it is a narrow
+ * one: the answer IS the quote, so the reviewer's own words are kept, but the
+ * server still enforces the unverified defaults. There is no document for an
+ * interview answer, so it always lands with no line numbers and
+ * citationVerified false, whoever sent it. This function can therefore never
+ * be used to smuggle a verified citation into the record.
+ *
  * An item with no stored counterpart cannot have been verified by this service,
  * so it is kept with citationVerified false and no line numbers. That is also
  * the correct handling for evidence captured from an interview rather than a
@@ -135,6 +148,21 @@ function mergeEvidence(
 
   return incoming.map((item) => {
     const prior = byCriterion.get(item.criterionId);
+
+    if (item.recordedAtInterview) {
+      return {
+        criterionId: item.criterionId,
+        status: item.status,
+        quotedText: item.quotedText,
+        sourceStartLine: 0,
+        sourceEndLine: 0,
+        explanation: item.explanation || prior?.explanation || "",
+        citationVerified: false,
+        recordedAtInterview: true,
+        recordedBy: item.recordedBy || prior?.recordedBy || "",
+        recordedAt: item.recordedAt || prior?.recordedAt || "",
+      };
+    }
 
     if (!prior) {
       return {

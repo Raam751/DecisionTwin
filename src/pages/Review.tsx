@@ -1,14 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { ChevronLeft, MessageCircleQuestionMark } from "lucide-react";
+import { ChevronLeft, Mic } from "lucide-react";
 
 import { CoverageSummary } from "@/components/coverage-summary";
 import { DecisionPanel } from "@/components/decision-panel";
+import { InterviewAnswerControl } from "@/components/interview-answer-control";
 import { OverrideControl } from "@/components/override-control";
 import { ReplayPanel } from "@/components/replay-panel";
 import { SaveStatus, type SaveState } from "@/components/save-status";
 import SourceDocument from "@/components/source-document";
 import { StatusBadge } from "@/components/status-badge";
+import { SummaryForCandidate } from "@/components/summary-for-candidate";
 import { REVIEWERS, useEvidenceRecord } from "@/hooks/use-evidence-record";
 import { fetchStoredRecord, generateEvidence } from "@/services/evidence-api";
 import { saveReview } from "@/services/review-api";
@@ -22,6 +24,14 @@ interface CriterionRow {
   item?: EvidenceItem;
   interviewQuestion?: string;
 }
+
+const formatWhen = (iso: string) =>
+  new Date(iso).toLocaleString(undefined, {
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 
 const Review = () => {
   const { candidateId } = useParams<{ candidateId: string }>();
@@ -38,6 +48,7 @@ const Review = () => {
   const {
     record,
     overrideStatus,
+    recordInterviewAnswer,
     saveDecision,
     clearDecision,
     resetRecord,
@@ -316,6 +327,7 @@ const Review = () => {
                             <StatusBadge
                               status={item.status}
                               verified={
+                                !item.recordedAtInterview &&
                                 item.status === "supported" &&
                                 item.citationVerified
                               }
@@ -330,13 +342,15 @@ const Review = () => {
                           </span>
                         </div>
                         <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
-                          {clickable && item
-                            ? item.sourceStartLine === item.sourceEndLine
-                              ? `Line ${item.sourceStartLine}`
-                              : `Lines ${item.sourceStartLine} to ${item.sourceEndLine}`
-                            : isUncertain
-                              ? "No cited lines"
-                              : "not cited"}
+                          {item?.recordedAtInterview
+                            ? "Recorded at interview"
+                            : clickable && item
+                              ? item.sourceStartLine === item.sourceEndLine
+                                ? `Line ${item.sourceStartLine}`
+                                : `Lines ${item.sourceStartLine} to ${item.sourceEndLine}`
+                              : isUncertain
+                                ? "No cited lines"
+                                : "not cited"}
                         </span>
                       </div>
                     );
@@ -383,18 +397,41 @@ const Review = () => {
 
                             {(isUncertain || isConflicting) &&
                               interviewQuestion && (
-                                <div className="flex gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
-                                  <MessageCircleQuestionMark className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />
-                                  <div>
-                                    <p className="text-xs font-semibold uppercase tracking-wider text-amber-700">
-                                      Interview question
-                                    </p>
-                                    <p className="mt-1 text-sm leading-relaxed text-amber-900">
-                                      {interviewQuestion}
-                                    </p>
-                                  </div>
-                                </div>
+                                <InterviewAnswerControl
+                                  question={interviewQuestion}
+                                  reviewer={reviewer}
+                                  onRecord={(answer, status, capturedBy) =>
+                                    void persist(
+                                      recordInterviewAnswer(
+                                        criterion.id,
+                                        answer,
+                                        status,
+                                        capturedBy,
+                                      ),
+                                    )
+                                  }
+                                />
                               )}
+
+                            {item?.recordedAtInterview && (
+                              <div className="rounded-xl border border-sky-200 bg-sky-50 p-4">
+                                <div className="flex items-center gap-2">
+                                  <Mic className="h-4 w-4 shrink-0 text-sky-700" />
+                                  <p className="text-xs font-semibold uppercase tracking-wider text-sky-800">
+                                    Recorded at interview
+                                  </p>
+                                </div>
+                                <blockquote className="mt-2 border-l-2 border-sky-300 pl-3 text-sm leading-relaxed text-sky-950">
+                                  “{item.quotedText}”
+                                </blockquote>
+                                <p className="mt-2 text-xs text-sky-700">
+                                  {item.recordedBy}
+                                  {item.recordedAt
+                                    ? `, ${formatWhen(item.recordedAt)}`
+                                    : ""}
+                                </p>
+                              </div>
+                            )}
 
                             {item && (
                               <OverrideControl
@@ -434,6 +471,15 @@ const Review = () => {
                   void persist(saveDecision(disposition, reason, reviewer))
                 }
                 onClear={() => void persist(clearDecision())}
+              />
+            )}
+
+            {record && (
+              <SummaryForCandidate
+                candidateName={candidate.name}
+                roleTitle={role.title}
+                criteria={role.criteria}
+                record={record}
               />
             )}
           </section>
