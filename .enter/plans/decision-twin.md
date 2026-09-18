@@ -33,18 +33,18 @@ No em dashes or en dashes in any new code, copy, or comments.
 `scripts/`, `src/data/seed.ts`, `src/types.ts`, `generate-evidence`, `save-review`, `save-workspace` remain untouched. Reason minimums, citation verification, deep links, and workspace scoping are untouched.
 
 ## Implementation checklist
-- [ ] Create and deploy `supabase/functions/condense-resume/index.ts` copying `generate-criteria` protocol handling exactly.
-- [ ] Create `src/services/condense-api.ts` mirroring `candidate-name-api.ts`.
-- [ ] Wire auto-condensing into the `NewCandidate.tsx` processing effect with progress label, fallback to raw lines, and a soft warning note.
-- [ ] Add the condense note to the confirmation panel UI.
-- [ ] Confirm no em/en dashes in new code and copy.
+- [x] Create and deploy `supabase/functions/condense-resume/index.ts` copying `generate-criteria` protocol handling exactly.
+- [x] Create `src/services/condense-api.ts` mirroring `candidate-name-api.ts`.
+- [x] Wire auto-condensing into the `NewCandidate.tsx` processing effect with progress label, fallback to raw lines, and a soft warning note.
+- [x] Add the condense note to the confirmation panel UI.
+- [x] Confirm no em/en dashes in new code and copy.
 
 ## Verification checklist
-- [ ] Run `pnpm lint`, `pnpm exec tsc --noEmit`, `pnpm run build`, and `pnpm run build:prod --manifest`.
-- [ ] Browser-test a long PDF (more than 15 lines) with a stubbed condense reply: fewer condensed lines appear, numbered from 1, confirmation still required.
-- [ ] Browser-test condense failure: raw lines shown, warning note visible, file still ready for confirmation.
-- [ ] Browser-test a short file (15 lines or fewer): no condense call fires, raw lines kept.
-- [ ] Confirm no page errors and no `save-workspace` call without explicit confirmation.
-- [ ] Exercise the deployed function with one real call and report the outcome; redeploy after any fix.
-- [ ] Run the strict production audit and classify the new dynamic module; retain known pre-existing warnings.
-- [ ] State clearly which items were verified by execution and which only by reading code.
+- [x] Run `pnpm lint`, `pnpm exec tsc --noEmit`, `pnpm run build`, and `pnpm run build:prod --manifest`.
+- [x] Browser-test a long PDF (more than 15 lines) with a stubbed condense reply: fewer condensed lines appear, numbered from 1, confirmation still required.
+- [x] Browser-test condense failure: raw lines shown, warning note visible, file still ready for confirmation.
+- [x] Browser-test a short file (15 lines or fewer): no condense call fires, raw lines kept.
+- [x] Confirm no page errors and no `save-workspace` call without explicit confirmation.
+- [x] Exercise the deployed function with one real call and report the outcome; redeploy after any fix.
+- [x] Run the strict production audit and classify the new dynamic module; retain known pre-existing warnings.
+- [x] State clearly which items were verified by execution and which only by reading code.

@@ -14,6 +14,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { LineEditor } from "@/components/line-editor";
 import { suggestCandidateName } from "@/services/candidate-name-api";
+import { condenseResume } from "@/services/condense-api";
 import {
   extractPdfText,
   isPdfFile,
@@ -34,6 +35,10 @@ interface IntakeFile {
   progressLabel: string;
   error: string | null;
   lines: DocumentLine[];
+  /** Set when the model could not condense and the raw lines are shown. */
+  condenseNote: string | null;
+  /** True when the shown lines are the model's condensed summary. */
+  condensed: boolean;
 }
 
 /** The "no text" warning is deliberately plain so a scanned PDF is not hidden. */
@@ -106,21 +111,51 @@ const NewCandidate = () => {
           patchFile(index, { progressLabel: "Reading text file" });
           raw = await readTextFile(entry.file);
         }
-        const lines = toDocumentLines(raw);
-        if (lines.length === 0) {
+        const rawLines = toDocumentLines(raw);
+        if (rawLines.length === 0) {
           patchFile(index, {
             status: "empty",
             progressLabel: "No text found",
             error: NO_TEXT_MESSAGE,
           });
-        } else {
-          patchFile(index, {
-            status: "ready",
-            progressLabel: "Ready for review",
-            lines,
-            error: null,
-          });
+          return;
         }
+
+        // Short lists have nothing to condense. Long lists go through the
+        // model once; on any failure the raw lines are kept, never lost.
+        let lines = rawLines;
+        let condenseNote: string | null = null;
+        let condensed = false;
+        if (rawLines.length > 15) {
+          patchFile(index, { progressLabel: "Condensing with AI" });
+          try {
+            const condensedLines = await condenseResume(
+              rawLines.map((line) => line.text).join("\n"),
+            );
+            if (condensedLines.length > 0) {
+              lines = condensedLines.map((text, i) => ({
+                lineNumber: i + 1,
+                text,
+              }));
+              condensed = true;
+            } else {
+              condenseNote =
+                "Could not condense this file. The raw lines are shown; edit them before saving.";
+            }
+          } catch {
+            condenseNote =
+              "Could not condense this file. The raw lines are shown; edit them before saving.";
+          }
+        }
+
+        patchFile(index, {
+          status: "ready",
+          progressLabel: "Ready for review",
+          lines,
+          error: null,
+          condenseNote,
+          condensed,
+        });
       } catch (error) {
         patchFile(index, {
           status: "failed",
@@ -148,6 +183,8 @@ const NewCandidate = () => {
           ? null
           : "Only PDF and plain text files are supported.",
         lines: [],
+        condenseNote: null,
+        condensed: false,
       };
     });
 
@@ -410,7 +447,24 @@ const NewCandidate = () => {
                   {nonEmptyLineCount}{" "}
                   {nonEmptyLineCount === 1 ? "line" : "lines"}
                 </p>
+                {current.condensed && (
+                  <span className="rounded-full border border-brand/25 bg-peach px-2.5 py-1 font-mono text-2xs font-semibold uppercase tracking-[0.08em] text-peach-foreground">
+                    Condensed
+                  </span>
+                )}
               </div>
+
+              {current.condenseNote && (
+                <div className="flex gap-2.5 border-b border-line bg-uncertain-soft/60 px-4 py-3">
+                  <TriangleAlert
+                    className="mt-0.5 h-4 w-4 shrink-0 text-uncertain"
+                    aria-hidden="true"
+                  />
+                  <p className="text-xs leading-relaxed text-ink">
+                    {current.condenseNote}
+                  </p>
+                </div>
+              )}
 
               {(fewLines || fragmented) && (
                 <div className="flex gap-2.5 border-b border-line bg-uncertain-soft/60 px-4 py-3">
