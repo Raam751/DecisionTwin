@@ -1,5 +1,6 @@
 import { History } from "lucide-react";
 
+import { InterviewTag } from "@/components/interview-tag";
 import type { EvidenceRecord } from "@/types";
 
 interface ReplayPanelProps {
@@ -16,11 +17,13 @@ const formatWhen = (iso: string) =>
   });
 
 const Row = ({ label, value }: { label: string; value: string }) => (
-  <div className="flex items-baseline justify-between gap-4 py-1.5">
-    <span className="shrink-0 text-xs text-muted-foreground">{label}</span>
-    <span className="min-w-0 break-words text-right text-xs font-medium tabular-nums">
+  <div className="py-2.5">
+    <p className="text-2xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+      {label}
+    </p>
+    <p className="mt-1 break-all font-mono text-xs leading-relaxed text-ink">
       {value}
-    </span>
+    </p>
   </div>
 );
 
@@ -31,18 +34,16 @@ export function ReplayPanel({ record, criterionLabel }: ReplayPanelProps) {
   );
 
   return (
-    <div className="rounded-2xl border bg-card p-5">
-      <div className="flex items-center gap-2">
-        <History className="h-4 w-4 shrink-0 text-muted-foreground" />
-        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          Replay record
-        </p>
+    <div className="card-surface p-5 md:p-6">
+      <div className="flex items-center gap-2.5">
+        <History aria-hidden className="h-4 w-4 shrink-0 text-muted-foreground" />
+        <p className="eyebrow">Replay record</p>
       </div>
-      <p className="mt-2 text-xs text-muted-foreground">
-        What is retained so this decision can be reconstructed later.
+      <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+        What is retained, so this decision can be reconstructed months from now.
       </p>
 
-      <div className="mt-3 divide-y">
+      <div className="mt-4 divide-y divide-line border-y border-line">
         <Row label="Record" value={record.id} />
         <Row label="Model" value={meta.modelName} />
         <Row label="Prompt version" value={meta.promptVersion} />
@@ -69,34 +70,34 @@ export function ReplayPanel({ record, criterionLabel }: ReplayPanelProps) {
           label="Decision event"
           value={
             humanDecision
-              ? `${humanDecision.disposition} by ${humanDecision.reviewerName}`
+              ? `${humanDecision.disposition} — ${humanDecision.reviewerName}`
               : "not recorded"
           }
         />
       </div>
 
       {reviewerEdits.length > 0 && (
-        <div className="mt-4">
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Human overrides
-          </p>
-          <ul className="mt-2 space-y-2">
+        <div className="mt-5">
+          <p className="eyebrow">Human overrides</p>
+          <ul className="mt-3 space-y-2">
             {reviewerEdits.map((edit, index) => (
               <li
                 key={`${edit.field}-${edit.timestamp}-${index}`}
-                className="rounded-xl border bg-background p-3"
+                className="card-inset p-3.5"
               >
-                <p className="text-xs font-semibold">
-                  {criterionLabel(edit.field.split(".")[1] ?? "")}
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {edit.previousValue} to {edit.newValue}
-                </p>
-                <p className="mt-1.5 text-xs leading-relaxed text-foreground/80">
+                <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                  <p className="text-xs font-semibold text-ink">
+                    {criterionLabel(edit.field.split(".")[1] ?? "")}
+                  </p>
+                  <p className="font-mono text-2xs text-muted-foreground">
+                    {edit.previousValue} → {edit.newValue}
+                  </p>
+                </div>
+                <p className="mt-1.5 text-xs leading-relaxed text-ink/85">
                   {edit.reason}
                 </p>
-                <p className="mt-1.5 text-xs text-muted-foreground">
-                  {edit.reviewer}, {formatWhen(edit.timestamp)}
+                <p className="mt-1.5 font-mono text-2xs text-muted-foreground">
+                  {edit.reviewer} · {formatWhen(edit.timestamp)}
                 </p>
               </li>
             ))}
@@ -105,24 +106,22 @@ export function ReplayPanel({ record, criterionLabel }: ReplayPanelProps) {
       )}
 
       {interviewAnswers.length > 0 && (
-        <div className="mt-4">
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Interview answers
-          </p>
-          <ul className="mt-2 space-y-2">
+        <div className="mt-5">
+          <p className="eyebrow">Interview answers</p>
+          <ul className="mt-3 space-y-2">
             {interviewAnswers.map((item) => (
-              <li
-                key={item.criterionId}
-                className="rounded-xl border bg-background p-3"
-              >
-                <p className="text-xs font-semibold">
-                  {criterionLabel(item.criterionId)}
-                </p>
-                <blockquote className="mt-1 text-xs leading-relaxed text-foreground/80">
+              <li key={item.criterionId} className="card-inset p-3.5">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-xs font-semibold text-ink">
+                    {criterionLabel(item.criterionId)}
+                  </p>
+                  <InterviewTag />
+                </div>
+                <blockquote className="mt-2 border-l-2 border-interview/40 pl-3 text-xs leading-relaxed text-ink/85">
                   “{item.quotedText}”
                 </blockquote>
-                <p className="mt-1.5 text-xs text-muted-foreground">
-                  {item.recordedBy}, {formatWhen(item.recordedAt ?? "")} — not
+                <p className="mt-2 font-mono text-2xs text-muted-foreground">
+                  {item.recordedBy} · {formatWhen(item.recordedAt ?? "")} · not
                   citation-verified
                 </p>
               </li>

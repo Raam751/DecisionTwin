@@ -25,9 +25,19 @@ export default {
 				ring: 'hsl(var(--ring))',
 				background: 'hsl(var(--background))',
 				foreground: 'hsl(var(--foreground))',
+				/* Canvas, surfaces and ink */
+				canvas: 'hsl(var(--canvas) / <alpha-value>)',
+				'canvas-deep': 'hsl(var(--canvas-deep) / <alpha-value>)',
+				surface: 'hsl(var(--surface) / <alpha-value>)',
+				ink: 'hsl(var(--ink) / <alpha-value>)',
+				line: 'hsl(var(--line) / <alpha-value>)',
 				primary: {
-					DEFAULT: 'hsl(var(--primary))',
+					DEFAULT: 'hsl(var(--primary) / <alpha-value>)',
 					foreground: 'hsl(var(--primary-foreground))'
+				},
+				brand: {
+					DEFAULT: 'hsl(var(--brand) / <alpha-value>)',
+					deep: 'hsl(var(--brand-deep) / <alpha-value>)'
 				},
 				secondary: {
 					DEFAULT: 'hsl(var(--secondary))',
@@ -57,6 +67,32 @@ export default {
 					DEFAULT: 'hsl(var(--card))',
 					foreground: 'hsl(var(--card-foreground))'
 				},
+				/* Semantic states: tone + soft surface, always with an icon */
+				supported: {
+					DEFAULT: 'hsl(var(--supported) / <alpha-value>)',
+					soft: 'hsl(var(--supported-soft) / <alpha-value>)'
+				},
+				uncertain: {
+					DEFAULT: 'hsl(var(--uncertain) / <alpha-value>)',
+					soft: 'hsl(var(--uncertain-soft) / <alpha-value>)'
+				},
+				conflicting: {
+					DEFAULT: 'hsl(var(--conflicting) / <alpha-value>)',
+					soft: 'hsl(var(--conflicting-soft) / <alpha-value>)'
+				},
+				interview: {
+					DEFAULT: 'hsl(var(--interview) / <alpha-value>)',
+					soft: 'hsl(var(--interview-soft) / <alpha-value>)'
+				},
+				/* Priority: Essential or Desirable */
+				essential: {
+					DEFAULT: 'hsl(var(--essential) / <alpha-value>)',
+					soft: 'hsl(var(--essential-soft) / <alpha-value>)'
+				},
+				desirable: {
+					DEFAULT: 'hsl(var(--desirable) / <alpha-value>)',
+					soft: 'hsl(var(--desirable-soft) / <alpha-value>)'
+				},
 				sidebar: {
 					DEFAULT: 'hsl(var(--sidebar-background))',
 					foreground: 'hsl(var(--sidebar-foreground))',
@@ -70,17 +106,40 @@ export default {
 			},
 			fontFamily: {
 				sans: [
-					'Arial',
-					'Helvetica',
+					'"Instrument Sans Variable"',
 					'ui-sans-serif',
 					'system-ui',
+					'Helvetica',
+					'Arial',
 					'sans-serif'
+				],
+				serif: [
+					'"Fraunces Variable"',
+					'Georgia',
+					'"Times New Roman"',
+					'serif'
+				],
+				mono: [
+					'"IBM Plex Mono"',
+					'ui-monospace',
+					'SFMono-Regular',
+					'monospace'
 				]
 			},
-			borderRadius: {
-				lg: 'var(--radius)',
-				md: 'calc(var(--radius) - 2px)',
-				sm: 'calc(var(--radius) - 4px)'
+			fontSize: {
+				'2xs': ['0.6875rem', { lineHeight: '1.45' }],
+			},
+			boxShadow: {
+				card: 'var(--shadow-card)',
+				lift: 'var(--shadow-lift)',
+				pop: 'var(--shadow-pop)'
+			},
+			backgroundImage: {
+				'canvas-grain':
+					'radial-gradient(hsl(23 26% 86% / 0.55) 1px, transparent 1px)'
+			},
+			backgroundSize: {
+				'canvas-grain': '18px 18px'
 			},
 			keyframes: {
 				'accordion-down': {

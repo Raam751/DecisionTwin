@@ -4,17 +4,26 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const badgeVariants = cva(
-  "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+  "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-2xs font-semibold uppercase tracking-[0.1em] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-deep/70 focus-visible:ring-offset-2",
   {
     variants: {
       variant: {
         default:
-          "border-transparent bg-primary text-primary-foreground hover:bg-primary/80",
+          "border-transparent bg-primary text-primary-foreground hover:bg-brand-deep",
         secondary:
-          "border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80",
+          "border-transparent bg-secondary text-secondary-foreground hover:bg-canvas-deep",
         destructive:
-          "border-transparent bg-destructive text-destructive-foreground hover:bg-destructive/80",
-        outline: "text-foreground",
+          "border-transparent bg-destructive text-destructive-foreground hover:bg-destructive/90",
+        outline: "border-line bg-card text-muted-foreground",
+        /* Semantic states */
+        supported: "border-supported/25 bg-supported-soft text-supported",
+        uncertain: "border-uncertain/25 bg-uncertain-soft text-uncertain",
+        conflicting:
+          "border-conflicting/25 bg-conflicting-soft text-conflicting",
+        interview: "border-interview/25 bg-interview-soft text-interview",
+        /* Priority */
+        essential: "border-essential/20 bg-essential-soft text-essential",
+        desirable: "border-line bg-desirable-soft text-desirable",
       },
     },
     defaultVariants: {

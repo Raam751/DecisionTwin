@@ -11,6 +11,15 @@ importers:
       '@enter-pro/analytics-sdk':
         specifier: ^0.0.10
         version: 0.0.10
+      '@fontsource-variable/fraunces':
+        specifier: ^5.3.0
+        version: 5.3.0
+      '@fontsource-variable/instrument-sans':
+        specifier: ^5.3.0
+        version: 5.3.0
+      '@fontsource/ibm-plex-mono':
+        specifier: ^5.3.0
+        version: 5.3.0
       '@hookform/resolvers':
         specifier: ^5.2.1
         version: 5.2.2(react-hook-form@7.72.1(react@19.2.5))
@@ -569,6 +578,15 @@ packages:
 
   '@floating-ui/utils@0.2.11':
     resolution: {integrity: sha512-RiB/yIh78pcIxl6lLMG0CgBXAZ2Y0eVHqMPYugu+9U0AeT6YBeiJpf7lbdJNIugFP5SIjwNRgo4DhR1Qxi26Gg==}
+
+  '@fontsource-variable/fraunces@5.3.0':
+    resolution: {integrity: sha512-9BYGySn4AHEJdgp9Z28tQ3X+laJMEOITXkQarZXeloWQZDq5oOvXJ3kDA8c7MGIfpogIaZfjrQBqmda8POOCKA==}
+
+  '@fontsource-variable/instrument-sans@5.3.0':
+    resolution: {integrity: sha512-u4gKbDBTNFGkg997tfQn3eHOhHuquWUFTRT/rwzuKtrxX5P2ekfs2x+LgBPP4P32+cC+vUwF1Cr+IdRoPQbrGw==}
+
+  '@fontsource/ibm-plex-mono@5.3.0':
+    resolution: {integrity: sha512-eTgnZjZEGk1QtD3ZstF+Vclo2HLAni8YMy34/DxllwZvyz1lR/1RF/xTiAquOBO7MvqBx8D2Ig2WCPMVfdZu7Q==}
 
   '@hookform/resolvers@5.2.2':
     resolution: {integrity: sha512-A/IxlMLShx3KjV/HeTcTfaMxdwy690+L/ZADoeaTltLx+CVuzkeVIPuybK3jrRfw7YZnmdKsVVHAlEPIAEUNlA==}
@@ -3205,6 +3223,12 @@ snapshots:
       react-dom: 19.2.5(react@19.2.5)
 
   '@floating-ui/utils@0.2.11': {}
+
+  '@fontsource-variable/fraunces@5.3.0': {}
+
+  '@fontsource-variable/instrument-sans@5.3.0': {}
+
+  '@fontsource/ibm-plex-mono@5.3.0': {}
 
   '@hookform/resolvers@5.2.2(react-hook-form@7.72.1(react@19.2.5))':
     dependencies:
