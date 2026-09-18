@@ -21,11 +21,17 @@ type MinimalTable = {
 const table = (name: string): MinimalTable =>
   (supabase as unknown as { from: (n: string) => MinimalTable }).from(name);
 
+/** A persisted role plus the time its row was created in the store. */
+export interface StoredRole extends Role {
+  createdAt?: string;
+}
+
 interface RoleRow {
   id: string;
   title: string;
   job_description: string | null;
   criteria: RoleCriterion[] | null;
+  created_at: string | null;
 }
 
 interface CandidateRow {
@@ -37,7 +43,7 @@ interface CandidateRow {
 }
 
 /** Rows this workspace created, most recent first. */
-export async function fetchWorkspaceRoles(): Promise<Role[]> {
+export async function fetchWorkspaceRoles(): Promise<StoredRole[]> {
   try {
     const { data, error } = await table("roles")
       .select("*")
@@ -52,6 +58,7 @@ export async function fetchWorkspaceRoles(): Promise<Role[]> {
         title: row.title,
         jobDescription: row.job_description ?? "",
         criteria: row.criteria ?? [],
+        createdAt: row.created_at ?? undefined,
       }));
   } catch {
     // A read failure must never break the page; the seeded defaults still show.

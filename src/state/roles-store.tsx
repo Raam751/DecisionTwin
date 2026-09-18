@@ -54,6 +54,10 @@ interface RolesContextValue {
   activeRole: Role;
   /** Candidates that belong to the active role. */
   activeCandidates: Candidate[];
+  /** Candidates that belong to a given role. */
+  candidatesForRole: (roleId: string) => Candidate[];
+  /** When each persisted role was created, keyed by role id. */
+  roleCreatedAt: Record<string, string>;
   setActiveRoleId: (roleId: string) => void;
   /**
    * Persists the role to this workspace's store, then adds it locally and
@@ -76,6 +80,7 @@ export function RolesProvider({ children }: { children: ReactNode }) {
   const [candidates, setCandidates] = useState<Candidate[]>(() =>
     seedCandidates.map(cloneCandidate),
   );
+  const [roleCreatedAt, setRoleCreatedAt] = useState<Record<string, string>>({});
 
   // Load this workspace's persisted roles and candidates once. A failure is
   // silent on purpose: the seeded defaults still show, and nothing the user
@@ -113,6 +118,17 @@ export function RolesProvider({ children }: { children: ReactNode }) {
           );
           return fresh.length > 0 ? [...current, ...fresh] : current;
         });
+
+        // Keep the creation times of the persisted roles, for the roles list.
+        setRoleCreatedAt((prev) => {
+          let next = prev;
+          for (const role of extraRoles) {
+            if (role.createdAt && !prev[role.id]) {
+              next = { ...next, [role.id]: role.createdAt };
+            }
+          }
+          return next;
+        });
       })
       .catch(() => {
         // Keep the seeded defaults only.
@@ -131,6 +147,11 @@ export function RolesProvider({ children }: { children: ReactNode }) {
   const activeCandidates = useMemo(
     () => candidates.filter((candidate) => candidate.roleId === activeRole.id),
     [candidates, activeRole.id],
+  );
+
+  const candidatesForRole = useCallback(
+    (roleId: string) => candidates.filter((candidate) => candidate.roleId === roleId),
+    [candidates],
   );
 
   const setActiveRoleId = useCallback(
@@ -154,6 +175,7 @@ export function RolesProvider({ children }: { children: ReactNode }) {
         ? current
         : [...current, role],
     );
+    setRoleCreatedAt((prev) => ({ ...prev, [role.id]: new Date().toISOString() }));
     setActiveRoleIdState(role.id);
     rememberActiveRole(role.id);
   }, []);
@@ -178,6 +200,8 @@ export function RolesProvider({ children }: { children: ReactNode }) {
       roles,
       activeRole,
       activeCandidates,
+      candidatesForRole,
+      roleCreatedAt,
       setActiveRoleId,
       addRole,
       addCandidate,
@@ -186,6 +210,8 @@ export function RolesProvider({ children }: { children: ReactNode }) {
       roles,
       activeRole,
       activeCandidates,
+      candidatesForRole,
+      roleCreatedAt,
       setActiveRoleId,
       addRole,
       addCandidate,
