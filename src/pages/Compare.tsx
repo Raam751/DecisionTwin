@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { BadgeCheck, ChevronLeft, LoaderCircle, Table2 } from "lucide-react";
+import { BadgeCheck, ChevronLeft, LoaderCircle, Mic, Table2 } from "lucide-react";
 
 import { StatusBadge } from "@/components/status-badge";
 import { useRoleRecords } from "@/hooks/use-role-records";
@@ -188,14 +188,21 @@ const Compare = () => {
                                           Verified
                                         </span>
                                       )}
-                                    <span className="text-[11px] tabular-nums text-muted-foreground">
-                                      {item.sourceStartLine === 0
-                                        ? "Not cited"
-                                        : item.sourceStartLine ===
-                                            item.sourceEndLine
-                                          ? `Line ${item.sourceStartLine}`
-                                          : `Lines ${item.sourceStartLine} to ${item.sourceEndLine}`}
-                                    </span>
+                                    {item.recordedAtInterview ? (
+                                      <span className="inline-flex items-center gap-1 text-[11px] font-medium text-sky-700">
+                                        <Mic className="h-3.5 w-3.5" />
+                                        Recorded at interview
+                                      </span>
+                                    ) : (
+                                      <span className="text-[11px] tabular-nums text-muted-foreground">
+                                        {item.sourceStartLine === 0
+                                          ? "Not cited"
+                                          : item.sourceStartLine ===
+                                              item.sourceEndLine
+                                            ? `Line ${item.sourceStartLine}`
+                                            : `Lines ${item.sourceStartLine} to ${item.sourceEndLine}`}
+                                      </span>
+                                    )}
                                   </>
                                 ) : (
                                   <span className="text-xs text-muted-foreground">

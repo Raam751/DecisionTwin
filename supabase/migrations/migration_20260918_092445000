@@ -1,0 +1,5 @@
+-- Removes exactly the two reviewer_events rows written by the interview-answer
+-- UI round trip at 09:23 today (ids 9 and 10, both on evidence-candidate-a).
+-- The events table was empty before the test, so no real reviewer history is
+-- touched. The record's own content has already been restored byte-for-byte.
+delete from public.reviewer_events where id in (9, 10) and record_id = 'evidence-candidate-a';

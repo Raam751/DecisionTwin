@@ -26,6 +26,9 @@ const Row = ({ label, value }: { label: string; value: string }) => (
 
 export function ReplayPanel({ record, criterionLabel }: ReplayPanelProps) {
   const { replayMetadata: meta, reviewerEdits, humanDecision } = record;
+  const interviewAnswers = record.evidence.filter(
+    (item) => item.recordedAtInterview,
+  );
 
   return (
     <div className="rounded-2xl border bg-card p-5">
@@ -52,6 +55,14 @@ export function ReplayPanel({ record, criterionLabel }: ReplayPanelProps) {
             reviewerEdits.length === 0
               ? "none"
               : `${reviewerEdits.length} saved`
+          }
+        />
+        <Row
+          label="Interview answers"
+          value={
+            interviewAnswers.length === 0
+              ? "none"
+              : `${interviewAnswers.length} recorded`
           }
         />
         <Row
@@ -86,6 +97,33 @@ export function ReplayPanel({ record, criterionLabel }: ReplayPanelProps) {
                 </p>
                 <p className="mt-1.5 text-xs text-muted-foreground">
                   {edit.reviewer}, {formatWhen(edit.timestamp)}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {interviewAnswers.length > 0 && (
+        <div className="mt-4">
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Interview answers
+          </p>
+          <ul className="mt-2 space-y-2">
+            {interviewAnswers.map((item) => (
+              <li
+                key={item.criterionId}
+                className="rounded-xl border bg-background p-3"
+              >
+                <p className="text-xs font-semibold">
+                  {criterionLabel(item.criterionId)}
+                </p>
+                <blockquote className="mt-1 text-xs leading-relaxed text-foreground/80">
+                  “{item.quotedText}”
+                </blockquote>
+                <p className="mt-1.5 text-xs text-muted-foreground">
+                  {item.recordedBy}, {formatWhen(item.recordedAt ?? "")} — not
+                  citation-verified
                 </p>
               </li>
             ))}

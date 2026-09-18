@@ -1,0 +1,11 @@
+-- Restores evidence-candidate-a byte-for-byte to the snapshot taken seconds
+-- before a UI round-trip test wrote an interview answer and a decision to it.
+-- The UPDATE value is the exact original JSONB from that snapshot (evidence,
+-- reviewer_edits = [], human_decision = null). This touches only this one
+-- seeded demo record, restoring it to its pre-test state; it is not a business
+-- data change. The audit rows the test created are removed separately.
+update public.evidence_records
+set evidence = '[{"status":"supported","quotedText":"Owned the partner-facing REST API end to end, including versioning, deprecation policy and the public changelog.","criterionId":"api-ownership","explanation":"Directly describes end-to-end ownership of an API including versioning, deprecation and how consumers were informed via changelog.","sourceEndLine":4,"sourceStartLine":4,"citationVerified":true},{"status":"supported","quotedText":"Served as on-call lead for the payments gateway and ran incident response for two Sev-1 outages. Wrote both post-incident reviews and tracked every follow-up action to closure.","criterionId":"incident-response","explanation":"Shows leadership during incidents and closing the loop with written post-incident reviews and follow-up tracking.","sourceEndLine":7,"sourceStartLine":6,"citationVerified":true},{"status":"uncertain","quotedText":"","criterionId":"production-kubernetes","explanation":"No mention of Kubernetes, upgrades, capacity planning or scaling anywhere in the document.","sourceEndLine":0,"sourceStartLine":0,"citationVerified":false},{"status":"supported","quotedText":"Designed the normalised Postgres schema for the shipment tracking service, covering carriers, routes and events. Modelled the event tables behind the analytics reports, reducing median query time by 40 percent.","criterionId":"data-modelling","explanation":"Describes designing a schema for a new service and reasoning about query performance implications.","sourceEndLine":10,"sourceStartLine":9,"citationVerified":true}]'::jsonb,
+    reviewer_edits = '[]'::jsonb,
+    human_decision = null
+where id = 'evidence-candidate-a';

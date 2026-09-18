@@ -1,0 +1,6 @@
+-- Removes the disposable record created to verify interview-answer handling in
+-- the redeployed save-review ('evidence-selftest-interview', candidate
+-- 'selftest-candidate'). It belongs to no candidate in the app and its single
+-- audit event cascades away. The seeded evidence-candidate-a/b/c records are
+-- untouched.
+delete from public.evidence_records where id = 'evidence-selftest-interview' and candidate_id = 'selftest-candidate';

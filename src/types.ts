@@ -45,6 +45,15 @@ export interface EvidenceItem {
    * line range. Set by server-side verification, never by the model.
    */
   citationVerified: boolean;
+  /**
+   * True when the quote is the candidate's own words from an interview rather
+   * than a line from the source document. Interview-sourced items can never be
+   * citation-verified, because there is no document to check them against.
+   */
+  recordedAtInterview?: boolean;
+  /** Who captured the answer and when. Present on interview-sourced items. */
+  recordedBy?: string;
+  recordedAt?: string;
 }
 
 export interface InterviewQuestion {
