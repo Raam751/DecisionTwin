@@ -35,6 +35,12 @@ const json = (body: unknown, status = 200) =>
 
 interface RequestBody {
   recordId?: unknown;
+  /**
+   * Which browser workspace owns this record. Required, because matching on the
+   * record id alone would let a review be written against a row this workspace
+   * can never read back, which loses the reviewer's work silently.
+   */
+  workspaceId?: unknown;
   evidence?: unknown;
   reviewerEdits?: unknown;
   humanDecision?: unknown;
@@ -238,6 +244,9 @@ Deno.serve(async (req) => {
   const recordId = asText(body?.recordId);
   if (!recordId) return json({ error: "recordId is required" }, 400);
 
+  const workspaceId = asText(body?.workspaceId);
+  if (!workspaceId) return json({ error: "workspaceId is required" }, 400);
+
   // A malformed payload must not wipe the record, so the two collections the
   // review screen owns are required to be arrays before anything is written.
   if (!Array.isArray(body?.evidence) || !Array.isArray(body?.reviewerEdits)) {
@@ -263,6 +272,7 @@ Deno.serve(async (req) => {
     .from("evidence_records")
     .select("evidence, reviewer_edits, human_decision")
     .eq("id", recordId)
+    .eq("workspace_id", workspaceId)
     .maybeSingle();
 
   if (readError) {
@@ -341,7 +351,8 @@ Deno.serve(async (req) => {
       reviewer_edits: reviewerEdits,
       human_decision: humanDecision,
     })
-    .eq("id", recordId);
+    .eq("id", recordId)
+    .eq("workspace_id", workspaceId);
 
   if (updateError) {
     return json(
