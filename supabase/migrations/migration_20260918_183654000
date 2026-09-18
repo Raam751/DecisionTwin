@@ -1,0 +1,3 @@
+alter table public.evidence_records
+  add column current_stage text,
+  add column decisions jsonb not null default '[]'::jsonb;

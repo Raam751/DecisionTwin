@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
+  ArrowRight,
   ChevronLeft,
   CircleAlert,
   CircleDashed,
+  Flag,
   HelpCircle,
   LoaderCircle,
   Sparkles,
@@ -22,17 +24,26 @@ import { StatusBadge } from "@/components/status-badge";
 import { SummaryForCandidate } from "@/components/summary-for-candidate";
 import { Button } from "@/components/ui/button";
 import { REVIEWERS, useEvidenceRecord } from "@/hooks/use-evidence-record";
+import { currentStageOf, nextStage, STAGES } from "@/lib/stages";
 import { fetchStoredRecord, generateEvidence } from "@/services/evidence-api";
 import { saveReview } from "@/services/review-api";
 import { cn } from "@/lib/utils";
 import { evidenceRecords } from "@/data/seed";
 import { useRoles } from "@/state/roles-store";
-import type { EvidenceItem, EvidenceRecord, RoleCriterion } from "@/types";
+import type {
+  EvidenceItem,
+  EvidenceRecord,
+  RoleCriterion,
+  StageDecision,
+} from "@/types";
 
 interface CriterionRow {
   criterion: RoleCriterion;
+  /** The document-sourced item, or the newest interview item when no document item exists. */
   item?: EvidenceItem;
   interviewQuestion?: string;
+  /** Every interview answer for this criterion, newest first. */
+  interviewItems: EvidenceItem[];
 }
 
 const formatWhen = (iso: string) =>
@@ -97,6 +108,7 @@ const Review = () => {
     recordInterviewAnswer,
     saveDecision,
     clearDecision,
+    advanceStage,
     resetRecord,
     replaceRecord,
   } = useEvidenceRecord(seededRecord);
@@ -210,17 +222,58 @@ const Review = () => {
 
   const rows = useMemo<CriterionRow[]>(() => {
     if (!record) return [];
-    return role.criteria.map((criterion) => ({
-      criterion,
-      item: record.evidence.find((e) => e.criterionId === criterion.id),
-      interviewQuestion: record.interviewQuestions.find(
-        (q) => q.criterionId === criterion.id,
-      )?.question,
-    }));
+    return role.criteria.map((criterion) => {
+      const criterionItems = record.evidence.filter(
+        (e) => e.criterionId === criterion.id,
+      );
+      const interviewItems = criterionItems
+        .filter((e) => e.recordedAtInterview)
+        .sort(
+          (a, b) =>
+            new Date(b.recordedAt ?? 0).getTime() -
+            new Date(a.recordedAt ?? 0).getTime(),
+        );
+      const documentItem = criterionItems.find((e) => !e.recordedAtInterview);
+      return {
+        criterion,
+        item: documentItem ?? interviewItems[0],
+        interviewItems,
+        interviewQuestion: record.interviewQuestions.find(
+          (q) => q.criterionId === criterion.id,
+        )?.question,
+      };
+    });
   }, [record, role]);
 
   const criterionLabel = (criterionId: string) =>
     role.criteria.find((c) => c.id === criterionId)?.label ?? criterionId;
+
+  const currentStage = record ? currentStageOf(record) : STAGES[0];
+  const nextStageName = record ? nextStage(currentStage) : null;
+  const stageDecision: StageDecision | undefined = record
+    ? [...(record.decisions ?? [])]
+        .reverse()
+        .find((decision) => decision.stage === currentStage)
+    : undefined;
+  const canAdvance =
+    !!record &&
+    stageDecision?.disposition === "Advance to interview" &&
+    nextStageName !== null;
+
+  // Decisions from earlier stages, in stage order, shown as history. The most
+  // recent decision lives in the panel above via humanDecision.
+  const decisionHistory: StageDecision[] = useMemo(() => {
+    if (!record) return [];
+    const newestTimestamp = record.humanDecision?.timestamp ?? null;
+    const history = (record.decisions ?? []).filter(
+      (decision) => decision.timestamp !== newestTimestamp,
+    );
+    return [...history].sort(
+      (a, b) =>
+        STAGES.indexOf(a.stage as (typeof STAGES)[number]) -
+        STAGES.indexOf(b.stage as (typeof STAGES)[number]),
+    );
+  }, [record]);
 
   const activeItem = record?.evidence.find(
     (e) => e.criterionId === activeCriterionId && e.sourceStartLine > 0,
@@ -296,6 +349,12 @@ const Review = () => {
                 </>
               )}
             </p>
+            {record && (
+              <span className="mt-4 inline-flex items-center gap-2 rounded-lg border border-brand/30 bg-peach px-3 py-1.5 text-xs font-semibold text-peach-foreground">
+                <Flag aria-hidden className="h-3.5 w-3.5" />
+                Current stage: {currentStage}
+              </span>
+            )}
           </div>
 
           <div className="flex flex-col items-start gap-3 sm:items-end">
@@ -434,13 +493,19 @@ const Review = () => {
 
             {record ? (
               <ul className="mt-5 space-y-3">
-                {rows.map(({ criterion, item, interviewQuestion }) => {
-                  const isUncertain = item?.status === "uncertain";
-                  const isConflicting = item?.status === "conflicting";
-                  const isInterview = !!item?.recordedAtInterview;
-                  const clickable =
-                    !!item && item.sourceStartLine > 0 && !isUncertain;
-                  const isActive = item?.criterionId === activeCriterionId;
+                {rows.map(
+                  ({
+                    criterion,
+                    item,
+                    interviewQuestion,
+                    interviewItems,
+                  }) => {
+                    const isUncertain = item?.status === "uncertain";
+                    const isConflicting = item?.status === "conflicting";
+                    const isInterview = !!item?.recordedAtInterview;
+                    const clickable =
+                      !!item && item.sourceStartLine > 0 && !isUncertain;
+                    const isActive = item?.criterionId === activeCriterionId;
 
                   const rail = isInterview
                     ? "bg-interview"
@@ -551,21 +616,35 @@ const Review = () => {
                               </p>
                             )}
 
-                          {item?.recordedAtInterview && (
-                            <div className="rounded-xl border border-interview/25 bg-interview-soft p-4">
-                              <p className="eyebrow text-interview">
-                                Interview answer
-                              </p>
-                              <blockquote className="mt-2 border-l-2 border-interview/40 pl-3.5 text-sm leading-relaxed text-ink">
-                                “{item.quotedText}”
-                              </blockquote>
-                              <p className="mt-2.5 font-mono text-2xs text-muted-foreground">
-                                {item.recordedBy}
-                                {item.recordedAt
-                                  ? ` · ${formatWhen(item.recordedAt)}`
-                                  : ""}{" "}
-                                · never citation-verified
-                              </p>
+                          {interviewItems.length > 0 && (
+                            <div className="space-y-3">
+                              {interviewItems.map((answer) => (
+                                <div
+                                  key={`${answer.criterionId}-${answer.stage ?? "Screening"}-${answer.recordedAt}`}
+                                  className="rounded-xl border border-interview/25 bg-interview-soft p-4"
+                                >
+                                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                                    <p className="eyebrow text-interview">
+                                      {answer.stage ?? "Screening"} answer
+                                    </p>
+                                    <StatusBadge
+                                      status={answer.status}
+                                      verified={false}
+                                    />
+                                    <InterviewTag />
+                                  </div>
+                                  <blockquote className="mt-2 border-l-2 border-interview/40 pl-3.5 text-sm leading-relaxed text-ink">
+                                    “{answer.quotedText}”
+                                  </blockquote>
+                                  <p className="mt-2.5 font-mono text-2xs text-muted-foreground">
+                                    {answer.recordedBy}
+                                    {answer.recordedAt
+                                      ? ` · ${formatWhen(answer.recordedAt)}`
+                                      : ""}{" "}
+                                    · never citation-verified
+                                  </p>
+                                </div>
+                              ))}
                             </div>
                           )}
 
@@ -574,6 +653,7 @@ const Review = () => {
                               <InterviewAnswerControl
                                 question={interviewQuestion}
                                 reviewer={reviewer}
+                                stage={currentStage}
                                 onRecord={(answer, status, capturedBy) =>
                                   void persist(
                                     recordInterviewAnswer(
@@ -587,7 +667,7 @@ const Review = () => {
                               />
                             )}
 
-                          {item && (
+                          {item && !item.recordedAtInterview && (
                             <OverrideControl
                               currentStatus={item.status}
                               onOverride={(next, reason) =>
@@ -653,16 +733,77 @@ const Review = () => {
             />
             <div className="mt-5">
               {record ? (
-                <DecisionPanel
-                  decision={record.humanDecision}
-                  reviewer={reviewer}
-                  unresolvedCount={unresolvedCount}
-                  onReviewerChange={setReviewer}
-                  onSave={(disposition, reason) =>
-                    void persist(saveDecision(disposition, reason, reviewer))
-                  }
-                  onClear={() => void persist(clearDecision())}
-                />
+                <div className="space-y-4">
+                  <DecisionPanel
+                    decision={record.humanDecision}
+                    reviewer={reviewer}
+                    unresolvedCount={unresolvedCount}
+                    stage={currentStage}
+                    onReviewerChange={setReviewer}
+                    onSave={(disposition, reason) =>
+                      void persist(saveDecision(disposition, reason, reviewer))
+                    }
+                    onClear={() => void persist(clearDecision())}
+                  />
+
+                  <div className="card-surface p-5 md:p-6">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <p className="eyebrow">Advance to the next stage</p>
+                      <span className="font-mono text-2xs text-muted-foreground">
+                        {nextStageName ?? "Final stage"}
+                      </span>
+                    </div>
+                    <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+                      A stage advance is a human action. It moves {candidate.name}{" "}
+                      from {currentStage} to {nextStageName ?? "no further stage"} and
+                      never clears or alters any evidence. It is allowed only when
+                      the current stage has a recorded decision of "Advance to
+                      interview".
+                    </p>
+                    <Button
+                      type="button"
+                      className="mt-4"
+                      disabled={!canAdvance}
+                      onClick={() => void persist(advanceStage())}
+                    >
+                      {nextStageName ? `Advance to ${nextStageName}` : "No further stage"}
+                      <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                    </Button>
+                  </div>
+
+                  <div className="card-surface p-5 md:p-6">
+                    <p className="eyebrow">Decisions from earlier stages</p>
+                    {decisionHistory.length === 0 ? (
+                      <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+                        No earlier stage decisions recorded.
+                      </p>
+                    ) : (
+                      <ul className="mt-3 space-y-3">
+                        {decisionHistory.map((entry, index) => (
+                          <li
+                            key={`${entry.stage}-${entry.timestamp}-${index}`}
+                            className="card-inset p-3.5"
+                          >
+                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                              <span className="rounded-full border border-brand/25 bg-peach px-2.5 py-0.5 font-mono text-2xs font-semibold uppercase tracking-[0.08em] text-peach-foreground">
+                                {entry.stage}
+                              </span>
+                              <p className="text-xs font-semibold text-ink">
+                                {entry.disposition}
+                              </p>
+                            </div>
+                            <p className="mt-2 text-xs leading-relaxed text-ink/85">
+                              {entry.reason}
+                            </p>
+                            <p className="mt-1.5 font-mono text-2xs text-muted-foreground">
+                              {entry.reviewerName} · {formatWhen(entry.timestamp)}
+                            </p>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </div>
               ) : (
                 <div className="card-surface p-6 text-sm text-muted-foreground">
                   A decision can be recorded once there is an evidence record to

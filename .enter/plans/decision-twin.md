@@ -1,50 +1,75 @@
-# Condense extracted resume lines
+# Hiring stages, Stage 1: data model, persistence, review screen
 
 ## Context
-PDF and text extraction can produce a very long numbered list (many bullet lines, achievements, education details). The reviewer wants a shorter, factual list covering roles, responsibilities, notable achievements, and an education summary, condensed automatically right after extraction, with the mandatory confirmation step still in place.
+Candidates currently have one record per role with no notion of rounds. Stage 1 adds a fixed, non-editable stage list (Screening, Round 1, Round 2, Final), lets each candidate sit in one current stage (default Screening), records one decision per stage plus history, and captures interview answers per stage without overwriting the document evidence or earlier rounds. All new fields are optional so nothing existing breaks, and `humanDecision` stays the most recent decision, kept in sync with the last `decisions` entry.
 
-The condense call runs only inside the existing upload flow (a user action), so the invariant that no model call runs on page load or mount stays intact.
+Branch state: current branch is already `main` and includes `github/main` unchanged. Git mutations are framework-managed and rejected here; no reset is performed and nothing on main that I did not write is reverted.
 
-## Approach
-Reuse the established pattern from `extract-candidate-name`: a self-contained edge function copying `generate-criteria` protocol handling exactly, a thin client service, and wiring inside the existing processing effect in `NewCandidate.tsx`.
+After Stage 1 implementation I will stop and report before doing Stage 2.
 
-### New edge function `supabase/functions/condense-resume/index.ts`
-- Copy `generate-criteria` structure verbatim for CORS, JSON helpers, protocol resolution, URL normalisation, auth ladder, `postModel`, `readContent`, `callModel`, and the `Deno.serve` handler.
-- Request body: `{ resumeText: string }`.
-- Prompt rules: keep factual, short, standalone lines covering job titles, companies, responsibilities, notable achievements, and a short education summary. Drop contact details, dates lists, verbose bullets, repeated content. Return 8 to 15 lines, name on the first line.
-- Output JSON: `{"lines": string[]}`.
-- Shaping: trim each line, drop empty lines, cap at 15, reject fewer than 2 usable lines.
-- Deploy with `supabase_deploy_edge_function`.
+## Changes
 
-### Client service `src/services/condense-api.ts`
-Mirror `candidate-name-api.ts`: `condenseResume(resumeText): Promise<string[]>` with defensive shape checks.
+### Types `src/types.ts`
+- `EvidenceItem`: add `stage?: string` (set only on interview-sourced items).
+- `ReviewerEdit`: add `stage?: string`.
+- Add `export interface StageDecision extends HumanDecision { stage: string }`.
+- `EvidenceRecord`: add `currentStage?: string` and `decisions?: StageDecision[]`.
+- Missing `currentStage` means Screening; missing `decisions` means `[]`. `src/data/seed.ts` untouched.
 
-### Page wiring `src/pages/NewCandidate.tsx`
-- After extraction produces raw lines inside the processing effect, if `rawLines.length > 15`, set the per-file progress label to "Condensing with AI" and call `condenseResume`. Use the condensed lines when returned and usable.
-- On condense failure (error or unusable reply), fall back to the raw extracted lines and set a soft note on the file ("Could not condense this file. The raw lines are shown; edit them before saving."). The file still reaches the ready state and the mandatory confirmation editor, so an upload is never blocked by the model.
-- Add `condenseNote: string | null` to `IntakeFile`; render it in the confirmation panel.
-- Short files (15 lines or fewer) skip the model call and keep the raw lines unchanged.
-- The reviewer still edits, merges, splits, deletes, and confirms before anything is saved.
+### Shared constants `src/lib/stages.ts`
+- `STAGES = ["Screening", "Round 1", "Round 2", "Final"]`.
+- Helpers: `currentStageOf(record)` (default Screening), `nextStage(current)` (null when none).
 
-### Copy rule
-No em dashes or en dashes in any new code, copy, or comments.
+### Migration (evidence_records)
+- Add `current_stage text` and `decisions jsonb not null default '[]'::jsonb`. Additive and tolerant of existing rows. No new RLS policy (writes stay service-role only). This is compatible same-business maintenance of the established evidence_records table.
+
+### save-review `supabase/functions/save-review/index.ts`
+- Accept `currentStage` and `decisions`; keep requiring `workspaceId` and keep scoping the select and update by `workspace_id`.
+- Evidence merge key becomes `criterionId + "|" + (recordedAtInterview ? "interview:" + (stage ?? "") : "document")` so there is exactly one document item per criterion and one interview item per criterion per stage.
+- Re-verify invariants: document citation fields always from the stored record; interview items always forced to `citationVerified false`, lines 0, no `stage` lost; an item with no stored counterpart forced to `citationVerified false`.
+- Persist `current_stage` and `decisions`.
+- When the stored `current_stage` differs from the incoming one, append one `reviewer_events` row with `event_type "decision"`, `field "currentStage"`, previous and new stage, reason from the latest decision, reviewer from the latest decision. Confirm the events CHECK allows "decision".
+
+### Client services
+- `src/services/evidence-api.ts`: read `current_stage` and `decisions` in `fetchStoredRecord` and map them into the returned record.
+- `src/services/review-api.ts`: send `currentStage` and `decisions` in the save-review body.
+
+### Hook `src/hooks/use-evidence-record.ts`
+- `saveDecision`: build a `StageDecision` with the current stage; replace any same-stage entry, append at the end, and set `humanDecision` to it (last entry stays in sync).
+- `clearDecision`: set `humanDecision` null and remove the matching last `decisions` entry.
+- `recordInterviewAnswer`: append/replace the interview item for `(criterion, currentStage)` only; never replace the document item or other stages' answers; tag the item and its reviewer edit with the stage.
+- `advanceStage`: return an updated record with the next `currentStage`, allowed only when the current stage has a decision of `Advance to interview` and a later stage exists; never alters evidence.
+- `overrideStatus`: unchanged behavior, but tags the edit with the current stage.
+
+### Review screen `src/pages/Review.tsx` and small components
+- Show the current stage prominently in the candidate header.
+- Per criterion: keep the document item visible; render interview answers one per stage, newest first, each labelled with stage, reviewer and date; recording an answer no longer replaces the document item or other rounds.
+- `InterviewAnswerControl` gains a stage label ("Asked at interview · {stage}").
+- `DecisionPanel` gains a stage label; the page records the decision for the current stage.
+- Below the panel, show previous stages' decisions as history (stage, disposition, reviewer, reason, date).
+- "Advance to next stage" action, enabled only when the current stage has an `Advance to interview` decision and a later stage exists; advancing does not clear or alter evidence.
+- `?criterion=` deep link, reason minimums, no Verified mark on interview evidence: unchanged.
 
 ### Protected and unchanged
-`scripts/`, `src/data/seed.ts`, `src/types.ts`, `generate-evidence`, `save-review`, `save-workspace` remain untouched. Reason minimums, citation verification, deep links, and workspace scoping are untouched.
+`scripts/`, `src/data/seed.ts`, `generate-evidence`, `save-workspace`, `generate-criteria`, `condense-resume`, `extract-candidate-name`, and generated integrations are untouched. No model call on load or mount.
+
+### Copy rule
+No em dashes or en dashes in code, copy, comments, or placeholders.
 
 ## Implementation checklist
-- [x] Create and deploy `supabase/functions/condense-resume/index.ts` copying `generate-criteria` protocol handling exactly.
-- [x] Create `src/services/condense-api.ts` mirroring `candidate-name-api.ts`.
-- [x] Wire auto-condensing into the `NewCandidate.tsx` processing effect with progress label, fallback to raw lines, and a soft warning note.
-- [x] Add the condense note to the confirmation panel UI.
-- [x] Confirm no em/en dashes in new code and copy.
+- [x] Add the optional stage types to `src/types.ts`.
+- [x] Create `src/lib/stages.ts` with the fixed stage list and helpers.
+- [x] Run the additive migration on `evidence_records`.
+- [x] Update `save-review` for stage fields, the composite evidence key, and the stage-advance event; redeploy.
+- [x] Update `evidence-api.ts` and `review-api.ts` for `currentStage` and `decisions`.
+- [x] Update the `useEvidenceRecord` hook: staged decisions, per-stage interview answers, and `advanceStage`.
+- [x] Update the review screen: current stage, per-stage interview answers, decision history, advance action; label updates in `InterviewAnswerControl` and `DecisionPanel`.
+- [x] Confirm no em/en dashes in changed copy and code.
 
 ## Verification checklist
-- [x] Run `pnpm lint`, `pnpm exec tsc --noEmit`, `pnpm run build`, and `pnpm run build:prod --manifest`.
-- [x] Browser-test a long PDF (more than 15 lines) with a stubbed condense reply: fewer condensed lines appear, numbered from 1, confirmation still required.
-- [x] Browser-test condense failure: raw lines shown, warning note visible, file still ready for confirmation.
-- [x] Browser-test a short file (15 lines or fewer): no condense call fires, raw lines kept.
-- [x] Confirm no page errors and no `save-workspace` call without explicit confirmation.
-- [x] Exercise the deployed function with one real call and report the outcome; redeploy after any fix.
-- [x] Run the strict production audit and classify the new dynamic module; retain known pre-existing warnings.
+- [x] Run `pnpm lint`, `pnpm exec tsc --noEmit`, `pnpm run build`, `pnpm run build:prod --manifest`, and `node scripts/verify-citations.mjs` (must report 15 passed, 0 failures).
+- [x] Confirm the migration applied and the columns tolerate existing rows; confirm the events CHECK allows "decision".
+- [x] Browser-verify the review screen with intercepted stored records: current stage shown; a document item stays beside one interview answer per stage, newest first, labelled; recording an answer in Round 2 keeps the Round 1 answer; decisions history shows prior stages; advance is disabled without an `Advance to interview` decision for the current stage and enabled after it; advancing changes the stage without touching evidence; no model call on load.
+- [x] Confirm `humanDecision` stays the last `decisions` entry after save and clear.
+- [x] Confirm no `save-workspace`/record writes happened as a test, and no page errors.
 - [x] State clearly which items were verified by execution and which only by reading code.

@@ -18,6 +18,7 @@ interface DecisionPanelProps {
   decision: HumanDecision | null;
   reviewer: string;
   unresolvedCount: number;
+  stage: string;
   onReviewerChange: (name: string) => void;
   onSave: (disposition: string, reason: string) => void;
   onClear: () => void;
@@ -36,6 +37,7 @@ export function DecisionPanel({
   decision,
   reviewer,
   unresolvedCount,
+  stage,
   onReviewerChange,
   onSave,
   onClear,
@@ -52,7 +54,7 @@ export function DecisionPanel({
         <div className="flex items-center gap-2.5 border-b border-line bg-supported-soft px-5 py-3.5">
           <CheckCircle2 aria-hidden className="h-4 w-4 shrink-0 text-supported" />
           <p className="eyebrow text-supported">
-            Decision recorded by a human reviewer
+            Decision recorded for {stage} by a human reviewer
           </p>
         </div>
 
@@ -96,7 +98,7 @@ export function DecisionPanel({
     <div className="card-surface p-5 md:p-6">
       <div className="flex items-center gap-2.5">
         <Gavel aria-hidden className="h-4 w-4 shrink-0 text-muted-foreground" />
-        <p className="eyebrow">Human decision</p>
+        <p className="eyebrow">Human decision for {stage}</p>
       </div>
       <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
         The model drafts evidence. A named reviewer makes the call, and owns it
