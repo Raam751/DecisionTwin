@@ -6,7 +6,7 @@ const CHAPTERS = [
   { label: "Contemplate", description: "Start with the source. Not an impression.", at: 0 },
   { label: "Trace", description: "API ownership traced to the candidate’s own words.", at: 21 },
   { label: "Verify", description: "A second citation. A second check against the source.", at: 38 },
-  { label: "Question", description: "Missing evidence becomes a question—not a guess.", at: 56 },
+  { label: "Question", description: "Missing evidence becomes a question, not a guess.", at: 56 },
   { label: "Decide", description: "A human makes the call. The reasoning stays.", at: 78 },
 ];
 

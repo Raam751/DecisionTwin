@@ -5,7 +5,7 @@ import type { Candidate, DocumentLine, Role, RoleCriterion } from "@/types";
 /**
  * The generated Database type predates the roles and candidates tables, so
  * they are reached through a narrow structural type rather than a blanket any
- * cast — the same pattern evidence-api uses for evidence_records.
+ * cast, the same pattern evidence-api uses for evidence_records.
  */
 type MinimalTable = {
   select: (columns: string) => {

@@ -44,7 +44,7 @@ const SourceDocument = ({ title, lines, activeRange }: SourceDocumentProps) => {
           <span className="shrink-0 rounded-full border border-brand/25 bg-peach px-2.5 py-1 font-mono text-2xs font-semibold uppercase tracking-[0.08em] text-peach-foreground">
             {activeRange.start === activeRange.end
               ? `line ${activeRange.start}`
-              : `lines ${activeRange.start}–${activeRange.end}`}
+              : `lines ${activeRange.start} to ${activeRange.end}`}
           </span>
         ) : (
           <span className="shrink-0 font-mono text-2xs uppercase tracking-[0.08em] text-muted-foreground">

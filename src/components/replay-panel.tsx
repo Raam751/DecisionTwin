@@ -70,7 +70,7 @@ export function ReplayPanel({ record, criterionLabel }: ReplayPanelProps) {
           label="Decision event"
           value={
             humanDecision
-              ? `${humanDecision.disposition} — ${humanDecision.reviewerName}`
+              ? `${humanDecision.disposition} by ${humanDecision.reviewerName}`
               : "not recorded"
           }
         />

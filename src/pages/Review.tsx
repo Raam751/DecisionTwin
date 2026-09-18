@@ -343,7 +343,7 @@ const Review = () => {
                 Drafting evidence for {candidate.name}
               </p>
               <p className="font-mono text-2xs text-muted-foreground">
-                this usually takes 10–13 seconds
+                this usually takes 10 to 13 seconds
               </p>
             </div>
             <div className="h-1 w-full overflow-hidden bg-canvas-deep">
@@ -455,7 +455,7 @@ const Review = () => {
                     : clickable && item
                       ? item.sourceStartLine === item.sourceEndLine
                         ? `line ${item.sourceStartLine}`
-                        : `lines ${item.sourceStartLine}–${item.sourceEndLine}`
+                        : `lines ${item.sourceStartLine} to ${item.sourceEndLine}`
                       : isUncertain
                         ? "no cited lines"
                         : "not cited";
