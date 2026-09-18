@@ -1,33 +1,72 @@
-# Safari rendering and role-action cleanup
+# Candidate intake: auto name, PDF upload with mandatory line confirmation
 
 ## Context
-Safari on the user’s Mac looks almost completely unstyled; Chrome looks correct. Safari version and the exact affected URL are not yet known. The dashboard also has a redundant New role button inside the Platform Engineer panel; role creation should be offered only in Roles. Headline alternatives were requested, not a headline replacement.
+Two intake improvements on `/candidates/new`, plus the standing branch rule.
 
-Main was fetched at task start and inspected at `bbfde74`. Existing user changes remain intact.
+**Branch state.** The current branch is already `main`. HEAD includes every change from `github/main` (`bbfde74`, including the workspace-scoping review fixes) unchanged, with the approved landing and redesign work on top. Git mutations such as pull, reset, merge and checkout are framework-managed and rejected in this workspace, so no reset was performed and nothing on main that I did not write was reverted. The workspace-scoping fix in `save-review` remains intact and is not touched.
 
-## Findings so far
-- Production CSS exists and includes both landing and workspace selectors.
-- The built stylesheet contains no remaining cascade-layer wrappers, imports or supports gates that could by themselves explain wholesale loss of styling.
-- PostCSS already includes Autoprefixer. Existing available console errors refer to an older, replaced animation implementation—not evidence for this Safari issue.
-- Do not assume caching, unsupported CSS, or fonts are the cause without browser evidence.
+**1. Auto-extract the candidate name.** When resume text is present, a user-initiated action calls a new edge function that reads the candidate name from the text and prefills the name field, leaving it editable. The function copies protocol handling, the auth scheme ladder, URL normalisation, CORS, and JSON extraction from `generate-criteria` exactly. No model call ever runs on page load or mount; the trigger is always a reviewer action, honoring the hard invariant.
+
+**2. PDF upload.** Upload one or more `.pdf` or `.txt` files. Text is extracted in the browser, one file at a time, with per-file progress. After extraction the reviewer always sees the numbered lines and must edit, merge, split, or delete them and confirm before anything is saved. Extraction that is empty (scanned image, no text layer), very thin, or fragmented is clearly warned about, with the paste path offered instead. The existing paste-text path keeps working exactly as it is today.
 
 ## Approach
-1. Run the existing production build in Chromium and Playwright WebKit at 1280×720. Inspect stylesheet requests/status/MIME, parsed stylesheets, computed palette/layout/font styles, and runtime failures. Test the current preview URL as well if browser access permits.
-2. Fix only a demonstrated code/build compatibility problem. Preserve the current design. If local WebKit is correct or the preview is inaccessible, report that limit and request the exact Safari version/affected URL rather than claiming Safari is fixed. Playwright WebKit is a useful engine test, not a guarantee for every macOS Safari release.
-3. Remove the New role button and unused Plus import from `src/pages/Index.tsx`. Keep the Roles page’s creation actions and `/roles/new` route intact.
-4. Keep the existing headline until a replacement is selected. Suggested alternatives: **Hiring decisions deserve evidence.**; **See the evidence. Own the decision.**; **Less instinct. More evidence.**; **Know why. Not just who.**
+
+### New edge function `supabase/functions/extract-candidate-name/index.ts`
+Copy `generate-criteria` structure verbatim for: `cors`, `json`, `extractJson`, protocol resolution, URL normalisation, `authHeaders`, `extraHeaders`, `postModel`, `readContent`, `callModel`, and the `Deno.serve` handler shape. Only the request body, prompt, and response shaping differ:
+- Request body: `{ resumeText: string }`.
+- Prompt: return the candidate's full name as it appears at the top of the resume; return `null` when no name is present.
+- Output JSON: `{"name": string | null}`.
+- Shaping: trim the name, cap length, empty string when unusable.
+- Deploy with `supabase_deploy_edge_function` (load `enter_cloud` first for conventions).
+
+### Client service `src/services/candidate-name-api.ts`
+Mirror `criteria-api.ts`: `invoke("extract-candidate-name", { body: { resumeText } })`, defensive shape check, `suggestCandidateName(resumeText): Promise<string>`.
+
+### PDF text extraction `src/services/pdf-extract.ts`
+- Add `pdfjs-dist` as a dependency. Import it with `await import("pdfjs-dist")` inside the extraction path only, so it never joins the initial bundle. Set `GlobalWorkerOptions.workerSrc` from `new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url)`.
+- `extractPdfText(file, onProgress)`: iterate pages, call `getTextContent()`, join items with spaces and newlines from `hasEOL`, report `page X of N` per page.
+- `readTextFile(file)`: plain `file.text()`.
+- Return the raw extracted string; line splitting happens in the editor.
+
+### Numbered line confirmation editor `src/components/line-editor.tsx`
+- Input: `DocumentLine[]`, `onChange(lines)`.
+- Each row shows the line number plus a textarea for the text.
+- Actions per row: edit text, merge into the previous line, split at the textarea caret, delete.
+- Any change renumbers lines from 1. Empty lines are dropped on save and on renumber, matching the existing paste behavior.
+- Accessible labels and keyboard focus are preserved.
+
+### Page rewrite `src/pages/NewCandidate.tsx`
+Keep the existing paste path exactly as-is (name field, resume textarea, read-only numbered preview, direct save), and add:
+- A "Suggest name from resume" action enabled when text is present (paste text, or the current file's extracted text). Loading and error states, prefills the shared name input, always editable.
+- A file dropzone accepting `.pdf` and `.txt`, multiple files.
+- A queue of chosen files processed one at a time. Per-file status: queued, extracting with progress, ready for confirmation, saved, failed, no readable text.
+- After extraction the line editor appears for that file with its numbered lines. The reviewer edits, merges, splits, deletes, then presses "Save candidate" which calls the existing `addCandidate` store action. Only then does the next file start. Nothing is saved before this confirmation.
+- Quality warnings with thresholds:
+  - zero lines: "This file has no readable text. It may be a scanned image. Paste the text instead." with an explicit paste hint.
+  - fewer than 3 lines: "Very little text was extracted."
+  - majority of lines are one or two words: "Lines look fragmented. Merge them into full sentences."
+- Each saved candidate gets its own id via `crypto.randomUUID`, roleId from the active role, documentTitle "Resume".
+
+### Unchanged behavior
+Protected files (`scripts/`, `src/data/seed.ts`, `src/types.ts`, `generate-evidence`, `save-review`, `save-workspace`) are not touched. Reason minimums (5 for override, 10 for decision), `citationVerified` server-only, interview evidence never verified, `?criterion=` deep links, and `save-review` workspace scoping all stay as-is.
+
+### Copy rule
+No em dashes or en dashes in any new code, copy, comments, or placeholders. Use commas, colons, full stops, or the word "to". Existing files being kept are not rewritten solely to strip dashes.
 
 ## Implementation checklist
-- [ ] Reproduce or bound the Safari symptom with stylesheet/network/computed-style evidence in WebKit and Chromium.
-- [ ] Apply only the compatibility fix supported by the investigation, or explicitly document why the Safari issue remains unverified.
-- [ ] Remove the dashboard New role action and unused icon import; preserve role creation in Roles.
-- [ ] Leave slogan copy, backend/data, fixtures/types, generated integrations, state/services/hooks, and protected scripts unchanged.
+- [ ] Add `pdfjs-dist` dependency.
+- [ ] Create `supabase/functions/extract-candidate-name/index.ts` copying `generate-criteria` protocol handling exactly; deploy it.
+- [ ] Create `src/services/candidate-name-api.ts` mirroring `criteria-api.ts`.
+- [ ] Create `src/services/pdf-extract.ts` with dynamic `pdfjs-dist` import, worker setup, per-page progress, and text-file reading.
+- [ ] Create `src/components/line-editor.tsx` supporting edit, merge, split at caret, delete, and renumbering.
+- [ ] Rewrite `src/pages/NewCandidate.tsx`: unchanged paste path, suggest-name action, file queue with one-at-a-time processing and per-file progress, mandatory confirmation, quality warnings, paste fallback for no-text files.
+- [ ] Confirm no em/en dashes anywhere in new code and copy.
+- [ ] Keep protected files untouched; verify `save-review` and `generate-evidence` byte-identical to `github/main`.
 
 ## Verification checklist
-- [ ] Run `pnpm lint`, `pnpm exec tsc --noEmit`, `pnpm run build`, and `pnpm run build:prod --manifest`.
-- [ ] Confirm `/dashboard` has no New role action and `/roles` still opens `/roles/new`.
-- [ ] Compare current Chrome/WebKit CSS loading and computed styles; check `/` and the representative `/dashboard` only, not an unrelated route sweep.
-- [ ] Recheck compact animation controls and the shared logo/navigation if affected by a compatibility fix.
-- [ ] Verify the affected desktop layout at 1280×720; only claim compatibility actually tested, and distinguish WebKit from the user’s Mac Safari.
-- [ ] Run the production artifact audit; retain known bundle/font/public-HTML warnings without an unrelated performance rewrite. Browser loading-performance and deployed HTTP conclusions stay limited to evidence obtained.
-- [ ] Review the final diff for unintended behavior or data changes.
+- [ ] Run `pnpm lint`, `pnpm exec tsc --noEmit`, `pnpm run build`, `pnpm run build:prod --manifest`.
+- [ ] Execute a browser test: paste path still saves with name plus text; no model call on mount (observe network); suggest-name only fires on click; name stays editable.
+- [ ] Execute upload tests with a crafted text-layer PDF, a plain `.txt`, and a scanned-image PDF (image only, no text): per-file progress, line editor confirmation, merge/split/delete renumbering, no-text warning with paste fallback, nothing saved before confirm.
+- [ ] Confirm multiple-file processing is sequential and each confirmed candidate appears in the workspace.
+- [ ] Confirm the new function deploys and is reachable; note whether the model call itself was execution-tested or only code-inspected.
+- [ ] State clearly which items were verified by execution and which only by reading code.
