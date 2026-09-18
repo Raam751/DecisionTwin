@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 
 import { useRoleRecords } from "@/hooks/use-role-records";
+import { currentStageOf } from "@/lib/stages";
 import { useRoles } from "@/state/roles-store";
 import { cn } from "@/lib/utils";
 import type { Candidate, EvidenceItem, RoleCriterion } from "@/types";
@@ -214,12 +215,20 @@ const Decisions = () => {
                           />
                           <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-4 px-5 py-4 md:px-6">
                             <div className="min-w-0 flex-1">
-                              <Link
-                                to={`/review/${candidate.id}`}
-                                className="font-serif text-xl font-medium tracking-tight text-ink underline-offset-4 hover:underline"
-                              >
-                                {candidate.name}
-                              </Link>
+                              <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                                <Link
+                                  to={`/review/${candidate.id}`}
+                                  className="font-serif text-xl font-medium tracking-tight text-ink underline-offset-4 hover:underline"
+                                >
+                                  {candidate.name}
+                                </Link>
+                                <span className="rounded-full border border-brand/25 bg-peach px-2.5 py-0.5 font-mono text-2xs font-semibold uppercase tracking-[0.08em] text-peach-foreground">
+                                  Stage:{" "}
+                                  {currentStageOf({
+                                    currentStage: records[candidate.id]?.currentStage,
+                                  })}
+                                </span>
+                              </div>
 
                               {decision ? (
                                 <div className="mt-3 space-y-2.5">

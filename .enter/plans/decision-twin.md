@@ -73,3 +73,28 @@ No em dashes or en dashes in code, copy, comments, or placeholders.
 - [x] Confirm `humanDecision` stays the last `decisions` entry after save and clear.
 - [x] Confirm no `save-workspace`/record writes happened as a test, and no page errors.
 - [x] State clearly which items were verified by execution and which only by reading code.
+
+# Hiring stages, Stage 2: surface stages everywhere else
+
+## Context
+Stage 1 delivered the stage data model, persistence, and review screen. Stage 2 surfaces the current stage and per-stage decisions and interview answers in the remaining surfaces without any backend or model changes.
+
+## Changes
+- `src/components/replay-panel.tsx`: group decisions by stage in fixed order (stage, disposition, reviewer, reason, date); label every interview answer with its stage; use unique keys per answer; remove em/en dashes.
+- `src/components/summary-for-candidate.tsx`: state the current stage; list what was asked and answered per stage; remove em/en dashes.
+- `src/pages/Compare.tsx`: show each candidate's current stage next to their name in the matrix.
+- `src/pages/Decisions.tsx`: show each candidate's current stage next to their latest decision, still grouped by disposition.
+- Reuse `STAGES` and `currentStageOf` from `src/lib/stages.ts`. No backend function, table, or model call. Invariants (no Verified mark on interview evidence, deep links, reason minimums, no model call on load) unchanged.
+
+## Implementation checklist
+- [x] Replay panel: staged decisions in order, stage-labelled interview answers, unique keys, dash-free.
+- [x] Candidate summary: current stage stated, per-stage asked/answered lists, dash-free.
+- [x] Compare matrix: current stage per candidate.
+- [x] Decisions page: current stage per entry.
+- [x] Confirm no em/en dashes in changed files.
+
+## Verification checklist
+- [x] Run `pnpm lint`, `pnpm exec tsc --noEmit`, `pnpm run build`, `pnpm run build:prod --manifest`, and `node scripts/verify-citations.mjs` (15 passed, 0 failures).
+- [x] Browser-verify with intercepted staged records: replay groups decisions by stage and labels answers with stage; summary states the stage and lists per-stage answers; compare shows each candidate's stage; decisions page shows stage beside the latest decision, grouping unchanged.
+- [x] Confirm no model calls and no backend writes as a test; no page errors.
+- [x] State clearly which items were verified by execution and which only by reading code.

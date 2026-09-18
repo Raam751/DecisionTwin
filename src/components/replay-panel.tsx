@@ -1,7 +1,9 @@
 import { History } from "lucide-react";
 
 import { InterviewTag } from "@/components/interview-tag";
-import type { EvidenceRecord } from "@/types";
+import { STAGES } from "@/lib/stages";
+import { cn } from "@/lib/utils";
+import type { EvidenceRecord, StageDecision } from "@/types";
 
 interface ReplayPanelProps {
   record: EvidenceRecord;
@@ -27,10 +29,22 @@ const Row = ({ label, value }: { label: string; value: string }) => (
   </div>
 );
 
+/** The stage a record is in now; missing means Screening. */
+const stageOf = (record: EvidenceRecord): string => record.currentStage ?? "Screening";
+
 export function ReplayPanel({ record, criterionLabel }: ReplayPanelProps) {
   const { replayMetadata: meta, reviewerEdits, humanDecision } = record;
   const interviewAnswers = record.evidence.filter(
     (item) => item.recordedAtInterview,
+  );
+
+  // One decision per stage, in the fixed stage order.
+  const stagedDecisions: StageDecision[] = [
+    ...(record.decisions ?? []),
+  ].sort(
+    (a, b) =>
+      STAGES.indexOf(a.stage as (typeof STAGES)[number]) -
+      STAGES.indexOf(b.stage as (typeof STAGES)[number]),
   );
 
   return (
@@ -50,6 +64,7 @@ export function ReplayPanel({ record, criterionLabel }: ReplayPanelProps) {
         <Row label="Schema version" value={meta.schemaVersion} />
         <Row label="Input hash" value={meta.inputHash} />
         <Row label="Run" value={formatWhen(meta.runTimestamp)} />
+        <Row label="Current stage" value={stageOf(record)} />
         <Row
           label="Evidence edits"
           value={
@@ -70,11 +85,47 @@ export function ReplayPanel({ record, criterionLabel }: ReplayPanelProps) {
           label="Decision event"
           value={
             humanDecision
-              ? `${humanDecision.disposition} — ${humanDecision.reviewerName}`
+              ? `${humanDecision.disposition} : ${humanDecision.reviewerName}`
               : "not recorded"
           }
         />
       </div>
+
+      {stagedDecisions.length > 0 && (
+        <div className="mt-5">
+          <p className="eyebrow">Decisions by stage</p>
+          <ul className="mt-3 space-y-2">
+            {stagedDecisions.map((decision, index) => (
+              <li
+                key={`${decision.stage}-${decision.timestamp}-${index}`}
+                className="card-inset p-3.5"
+              >
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <span
+                    className={cn(
+                      "rounded-full border px-2.5 py-0.5 font-mono text-2xs font-semibold uppercase tracking-[0.08em]",
+                      decision.stage === stageOf(record)
+                        ? "border-brand/30 bg-peach text-peach-foreground"
+                        : "border-line bg-surface text-muted-foreground",
+                    )}
+                  >
+                    {decision.stage}
+                  </span>
+                  <p className="text-xs font-semibold text-ink">
+                    {decision.disposition}
+                  </p>
+                </div>
+                <p className="mt-2 text-xs leading-relaxed text-ink/85">
+                  {decision.reason}
+                </p>
+                <p className="mt-1.5 font-mono text-2xs text-muted-foreground">
+                  {decision.reviewerName} · {formatWhen(decision.timestamp)}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {reviewerEdits.length > 0 && (
         <div className="mt-5">
@@ -90,7 +141,7 @@ export function ReplayPanel({ record, criterionLabel }: ReplayPanelProps) {
                     {criterionLabel(edit.field.split(".")[1] ?? "")}
                   </p>
                   <p className="font-mono text-2xs text-muted-foreground">
-                    {edit.previousValue} → {edit.newValue}
+                    {edit.previousValue} to {edit.newValue}
                   </p>
                 </div>
                 <p className="mt-1.5 text-xs leading-relaxed text-ink/85">
@@ -98,6 +149,7 @@ export function ReplayPanel({ record, criterionLabel }: ReplayPanelProps) {
                 </p>
                 <p className="mt-1.5 font-mono text-2xs text-muted-foreground">
                   {edit.reviewer} · {formatWhen(edit.timestamp)}
+                  {edit.stage ? ` · ${edit.stage}` : ""}
                 </p>
               </li>
             ))}
@@ -110,11 +162,17 @@ export function ReplayPanel({ record, criterionLabel }: ReplayPanelProps) {
           <p className="eyebrow">Interview answers</p>
           <ul className="mt-3 space-y-2">
             {interviewAnswers.map((item) => (
-              <li key={item.criterionId} className="card-inset p-3.5">
+              <li
+                key={`${item.criterionId}-${item.stage ?? "Screening"}-${item.recordedAt}-${item.quotedText}`}
+                className="card-inset p-3.5"
+              >
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="text-xs font-semibold text-ink">
                     {criterionLabel(item.criterionId)}
                   </p>
+                  <span className="rounded-full border border-interview/25 bg-interview-soft px-2.5 py-0.5 font-mono text-2xs font-semibold uppercase tracking-[0.08em] text-interview">
+                    {item.stage ?? "Screening"}
+                  </span>
                   <InterviewTag />
                 </div>
                 <blockquote className="mt-2 border-l-2 border-interview/40 pl-3 text-xs leading-relaxed text-ink/85">

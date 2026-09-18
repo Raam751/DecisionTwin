@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Check, Copy, FileText } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { currentStageOf, STAGES } from "@/lib/stages";
 import type { EvidenceItem, EvidenceRecord, RoleCriterion } from "@/types";
 
 interface SummaryForCandidateProps {
@@ -51,9 +52,10 @@ const whereOf = (item: EvidenceItem): string => {
  * One plain-language account of a candidate's evidence record, meant for the
  * candidate to read.
  *
- * Strictly a projection of the record: what was evidenced and where, what
- * remained unverified, what was asked at interview (and any recorded answer),
- * and the final disposition with its reason. No model call, no new claims.
+ * Strictly a projection of the record: the current stage, what was evidenced
+ * and where, what remained unverified, what was asked and answered in each
+ * stage, and the latest disposition with its reason. No model call, no new
+ * claims.
  */
 export function SummaryForCandidate({
   candidateName,
@@ -68,9 +70,11 @@ export function SummaryForCandidate({
       criteria.find((criterion) => criterion.id === criterionId)?.label ??
       criterionId;
 
+    const stage = currentStageOf(record);
+
     const evidence = record.evidence.map((item) => {
       const quote = item.quotedText ? ` “${item.quotedText}”` : "";
-      return `${labelOf(item.criterionId)} — ${titleCase(item.status)}.${quote} ${titleCase(whereOf(item))}.`;
+      return `${labelOf(item.criterionId)} : ${titleCase(item.status)}.${quote} ${titleCase(whereOf(item))}.`;
     });
 
     const unverified = record.evidence
@@ -80,29 +84,49 @@ export function SummaryForCandidate({
           `${labelOf(item.criterionId)} (${item.status}): ${item.explanation || "no explanation recorded."}`,
       );
 
+    // Answers grouped by the stage they were captured in, in stage order.
+    const byStage = new Map<string, EvidenceItem[]>();
+    for (const item of record.evidence) {
+      if (!item.recordedAtInterview) continue;
+      const key = item.stage ?? "Screening";
+      const list = byStage.get(key) ?? [];
+      list.push(item);
+      byStage.set(key, list);
+    }
+    const stagesInOrder = [...byStage.keys()].sort(
+      (a, b) =>
+        STAGES.indexOf(a as (typeof STAGES)[number]) -
+        STAGES.indexOf(b as (typeof STAGES)[number]),
+    );
+
+    const answered = stagesInOrder.map((stageName) => {
+      const lines = (byStage.get(stageName) ?? []).map(
+        (item) =>
+          `${labelOf(item.criterionId)} was asked and answered: “${item.quotedText}” (recorded by ${item.recordedBy ?? "the reviewer"}${item.recordedAt ? ` on ${formatWhen(item.recordedAt)}` : ""}).`,
+      );
+      return [`In ${stageName}:`, ...lines];
+    });
+
+    const unanswered = record.interviewQuestions
+      .filter(
+        (question) =>
+          !record.evidence.some(
+            (item) =>
+              item.recordedAtInterview &&
+              item.criterionId === question.criterionId,
+          ),
+      )
+      .map((question) => `Q: ${question.question} (no answer recorded).`);
+
     const interview =
-      record.interviewQuestions.length === 0
+      record.interviewQuestions.length === 0 && byStage.size === 0
         ? ["No interview questions were recorded."]
-        : record.interviewQuestions.map((question) => {
-            const answer = record.evidence.find(
-              (item) =>
-                item.criterionId === question.criterionId &&
-                item.recordedAtInterview,
-            );
-            return (
-              question.question +
-              (answer
-                ? ` Answered: “${answer.quotedText}” (recorded by ${answer.recordedBy} on ${formatWhen(answer.recordedAt)}).`
-                : " No answer recorded.")
-            );
-          });
+        : [...answered.flat(), ...unanswered];
 
     const decision = record.humanDecision
       ? [
           `${record.humanDecision.disposition}${
-            record.humanDecision.reason
-              ? ` — ${record.humanDecision.reason}`
-              : ""
+            record.humanDecision.reason ? ` : ${record.humanDecision.reason}` : ""
           }${
             record.humanDecision.reviewerName
               ? ` Recorded by ${record.humanDecision.reviewerName} on ${formatWhen(record.humanDecision.timestamp)}.`
@@ -112,6 +136,7 @@ export function SummaryForCandidate({
       : ["No decision recorded yet."];
 
     return [
+      { title: "Current stage", items: [stage] },
       {
         title: "What the evidence shows",
         items: evidence.length > 0 ? evidence : ["Nothing in the record yet."],
@@ -123,7 +148,7 @@ export function SummaryForCandidate({
             ? unverified
             : ["Nothing in the record is unverified."],
       },
-      { title: "Asked at interview", items: interview },
+      { title: "Asked and answered, by stage", items: interview },
       { title: "Decision", items: decision },
     ];
   }, [criteria, record]);
@@ -188,7 +213,7 @@ export function SummaryForCandidate({
 
       <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
         What the record evidences, where, what is still open, and how the
-        decision was reached. A view of the record only — nothing is added here.
+        decision was reached. A view of the record only: nothing is added here.
       </p>
 
       <div className="mt-5 space-y-5 divide-y divide-line [&>*+*]:pt-5">

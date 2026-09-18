@@ -3,6 +3,7 @@ import { BadgeCheck, ChevronLeft, LoaderCircle, Mic, Table2 } from "lucide-react
 
 import { StatusBadge } from "@/components/status-badge";
 import { useRoleRecords } from "@/hooks/use-role-records";
+import { currentStageOf } from "@/lib/stages";
 import { useRoles } from "@/state/roles-store";
 import { cn } from "@/lib/utils";
 
@@ -145,6 +146,12 @@ const Compare = () => {
                         >
                           <span className="text-sm font-semibold">
                             {candidate.name}
+                          </span>
+                          <span className="mt-1 block text-2xs font-semibold uppercase tracking-[0.1em] text-brand-deep">
+                            Stage:{" "}
+                            {currentStageOf({
+                              currentStage: records[candidate.id]?.currentStage,
+                            })}
                           </span>
                           <button
                             type="button"
