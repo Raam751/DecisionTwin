@@ -10,11 +10,8 @@ import { StatusBadge } from "@/components/status-badge";
 import { REVIEWERS, useEvidenceRecord } from "@/hooks/use-evidence-record";
 import { fetchStoredRecord, generateEvidence } from "@/services/evidence-api";
 import { cn } from "@/lib/utils";
-import {
-  candidates,
-  evidenceRecords,
-  platformEngineerRole,
-} from "@/data/seed";
+import { evidenceRecords } from "@/data/seed";
+import { useRoles } from "@/state/roles-store";
 import type { EvidenceItem, RoleCriterion } from "@/types";
 
 interface CriterionRow {
@@ -27,8 +24,9 @@ const Review = () => {
   const { candidateId } = useParams<{ candidateId: string }>();
   const navigate = useNavigate();
 
-  const candidate = candidates.find((c) => c.id === candidateId);
-  const role = platformEngineerRole;
+  const { activeRole, activeCandidates } = useRoles();
+  const candidate = activeCandidates.find((c) => c.id === candidateId);
+  const role = activeRole;
   const seededRecord = useMemo(
     () => evidenceRecords.find((r) => r.candidateId === candidate?.id),
     [candidate?.id],
@@ -55,14 +53,16 @@ const Review = () => {
   // Load a stored record if one exists, so a record generated earlier reloads
   // instantly instead of calling the model again. Falls back to the seeded
   // example silently if the table is empty or unreachable.
+  const candidateKey = candidate?.id;
+
   useEffect(() => {
-    if (!candidate) return;
+    if (!candidateKey) return;
     let cancelled = false;
     setSource("seed");
     setRejectedCitations([]);
     setGenerateError(null);
 
-    fetchStoredRecord(candidate.id).then((stored) => {
+    fetchStoredRecord(candidateKey).then((stored) => {
       if (cancelled || !stored || stored.evidence.length === 0) return;
       replaceRecord(stored);
       setSource("stored");
@@ -71,7 +71,7 @@ const Review = () => {
     return () => {
       cancelled = true;
     };
-  }, [candidate?.id, replaceRecord]);
+  }, [candidateKey, replaceRecord]);
 
   const runGeneration = async () => {
     if (!candidate) return;
