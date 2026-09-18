@@ -184,6 +184,8 @@ interface RequestBody {
   criteria: { id: string; label: string; description: string }[];
   documentLines: DocumentLine[];
   persist?: boolean;
+  /** Which browser workspace generated this, so records stay isolated. */
+  workspaceId?: string;
 }
 
 function buildPrompt(body: RequestBody): string {
@@ -468,6 +470,10 @@ Deno.serve(async (req) => {
     return json({ error: "candidateId, roleId, criteria and documentLines are required" }, 400);
   }
 
+  if (body.workspaceId !== undefined && typeof body.workspaceId !== "string") {
+    return json({ error: "workspaceId must be a string when provided" }, 400);
+  }
+
   const prompt = buildPrompt(body);
 
   type ModelPayload = {
@@ -515,8 +521,15 @@ Deno.serve(async (req) => {
     unresolved.has(q.criterionId),
   );
 
+  // The record id carries the workspace so two browsers never collide on the
+  // same candidate: seeded ids like candidate-a exist in every workspace, and
+  // the primary key is the id, so the workspace prefix keeps each browser's
+  // record separate.
+  const workspaceId = body.workspaceId?.trim();
   const record = {
-    id: `evidence-${body.candidateId}`,
+    id: workspaceId
+      ? `evidence-${workspaceId.slice(0, 8)}-${body.candidateId}`
+      : `evidence-${body.candidateId}`,
     candidateId: body.candidateId,
     roleId: body.roleId,
     evidence: verified,
@@ -540,6 +553,7 @@ Deno.serve(async (req) => {
       const { error } = await admin.from("evidence_records").upsert(
         {
           id: record.id,
+          workspace_id: workspaceId ?? null,
           candidate_id: record.candidateId,
           role_id: record.roleId,
           evidence: record.evidence,

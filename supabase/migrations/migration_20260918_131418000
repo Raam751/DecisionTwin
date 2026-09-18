@@ -1,0 +1,2 @@
+delete from public.roles where workspace_id = 'scratch-1789737245109';
+delete from public.candidates where workspace_id = 'scratch-1789737245109';

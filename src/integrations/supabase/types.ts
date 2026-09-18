@@ -3360,6 +3360,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      candidates: {
+        Row: {
+          created_at: string
+          document_lines: Json
+          document_title: string
+          id: string
+          name: string
+          role_id: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          document_lines: Json
+          document_title: string
+          id: string
+          name: string
+          role_id: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          document_lines?: Json
+          document_title?: string
+          id?: string
+          name?: string
+          role_id?: string
+          workspace_id?: string
+        }
+        Relationships: []
+      }
       evidence_records: {
         Row: {
           candidate_id: string
@@ -3372,6 +3402,7 @@ export type Database = {
           reviewer_edits: Json
           role_id: string
           updated_at: string
+          workspace_id: string | null
         }
         Insert: {
           candidate_id: string
@@ -3384,6 +3415,7 @@ export type Database = {
           reviewer_edits?: Json
           role_id: string
           updated_at?: string
+          workspace_id?: string | null
         }
         Update: {
           candidate_id?: string
@@ -3396,6 +3428,7 @@ export type Database = {
           reviewer_edits?: Json
           role_id?: string
           updated_at?: string
+          workspace_id?: string | null
         }
         Relationships: []
       }
@@ -3441,6 +3474,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      roles: {
+        Row: {
+          created_at: string
+          criteria: Json
+          id: string
+          job_description: string
+          title: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          criteria: Json
+          id: string
+          job_description: string
+          title: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          criteria?: Json
+          id?: string
+          job_description?: string
+          title?: string
+          workspace_id?: string
+        }
+        Relationships: []
       }
     }
     Views: {

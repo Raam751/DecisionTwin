@@ -34,7 +34,9 @@ const NewRole = () => {
   const [title, setTitle] = useState("");
   const [criteria, setCriteria] = useState<RoleCriterion[] | null>(null);
   const [extracting, setExtracting] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const canExtract = jobDescription.trim().length > 0 && !extracting;
   const canSave = !!criteria && criteria.length >= 2;
@@ -69,8 +71,11 @@ const NewRole = () => {
     );
   };
 
-  const save = () => {
-    if (!criteria || criteria.length < 2) return;
+  const save = async () => {
+    if (!criteria || criteria.length < 2 || saving) return;
+
+    setSaving(true);
+    setSaveError(null);
 
     // The id is internal, so it is rebuilt from the final label and kept unique.
     const used = new Set<string>();
@@ -89,14 +94,19 @@ const NewRole = () => {
       };
     });
 
-    addRole({
-      id: `role-${crypto.randomUUID().slice(0, 8)}`,
-      title: title.trim() || deriveTitle(jobDescription),
-      jobDescription: jobDescription.trim(),
-      criteria: shaped,
-    });
-
-    navigate("/");
+    try {
+      await addRole({
+        id: `role-${crypto.randomUUID().slice(0, 8)}`,
+        title: title.trim() || deriveTitle(jobDescription),
+        jobDescription: jobDescription.trim(),
+        criteria: shaped,
+      });
+      navigate("/");
+    } catch (cause) {
+      // Nothing was stored. Keep the form as it is so the save can be retried.
+      setSaveError((cause as Error).message);
+      setSaving(false);
+    }
   };
 
   return (
@@ -290,8 +300,15 @@ const NewRole = () => {
             </p>
 
             <div className="mt-6 flex flex-wrap items-center gap-3">
-              <Button onClick={save} disabled={!canSave}>
-                Save role
+              <Button onClick={save} disabled={!canSave || saving}>
+                {saving ? (
+                  <>
+                    <LoaderCircle className="h-4 w-4 animate-spin" />
+                    Saving role
+                  </>
+                ) : (
+                  "Save role"
+                )}
               </Button>
               <span
                 className={cn(
@@ -304,6 +321,17 @@ const NewRole = () => {
                   : "At least two criteria are required to continue."}
               </span>
             </div>
+
+            {saveError && (
+              <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-3">
+                <p className="text-xs font-semibold uppercase tracking-wider text-rose-800">
+                  Save failed
+                </p>
+                <p className="mt-1 text-xs leading-relaxed text-rose-900">
+                  {saveError}
+                </p>
+              </div>
+            )}
           </section>
         )}
       </div>
