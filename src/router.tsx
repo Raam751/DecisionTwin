@@ -1,5 +1,6 @@
 import { AppShell } from "./components/app-shell";
 import Compare from "./pages/Compare";
+import Decisions from "./pages/Decisions";
 import Index from "./pages/Index";
 import Landing from "./pages/Landing";
 import NewCandidate from "./pages/NewCandidate";
@@ -43,6 +44,11 @@ export const routers = [
     path: "/compare",
     name: "compare",
     element: <AppShell><Compare /></AppShell>,
+  },
+  {
+    path: "/decisions",
+    name: "decisions",
+    element: <AppShell><Decisions /></AppShell>,
   },
   /* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */
   {

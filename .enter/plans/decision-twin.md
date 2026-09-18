@@ -29,16 +29,16 @@ Branch state: the current branch is already `main` and includes everything from 
 No em dashes or en dashes in code, copy, comments, or placeholders.
 
 ## Implementation checklist
-- [ ] Create `src/pages/Decisions.tsx` grouping by disposition with counts, entries, empty states, framing line, and review links.
-- [ ] Add `Decisions` to `src/components/main-nav.tsx` with a `Scale` icon.
-- [ ] Add the `/decisions` route to `src/router.tsx` inside `AppShell`.
-- [ ] Confirm no em/en dashes in the new page and navigation.
-- [ ] Keep protected files untouched.
+- [x] Create `src/pages/Decisions.tsx` grouping by disposition with counts, entries, empty states, framing line, and review links.
+- [x] Add `Decisions` to `src/components/main-nav.tsx` with a `Scale` icon.
+- [x] Add the `/decisions` route to `src/router.tsx` inside `AppShell`.
+- [x] Confirm no em/en dashes in the new page and navigation.
+- [x] Keep protected files untouched.
 
 ## Verification checklist
-- [ ] Run `pnpm lint`, `pnpm exec tsc --noEmit`, `pnpm run build`, and `pnpm run build:prod --manifest`.
-- [ ] Browser-verify `/decisions`: all four groups render with counts; candidates appear in insertion order inside each group; entries show name, reviewer, reason, recorded time, coverage line, and review link; empty groups show an empty state; the framing line is present.
-- [ ] Verify the navigation shows Candidates, Roles, and Decisions, and each link routes correctly.
-- [ ] Verify the page loads records without any model call and without writes.
-- [ ] Confirm no ranking, score, or selection marks anywhere in the rendered page.
-- [ ] State clearly which items were verified by execution and which only by reading code.
+- [x] Run `pnpm lint`, `pnpm exec tsc --noEmit`, `pnpm run build`, and `pnpm run build:prod --manifest`.
+- [x] Browser-verify `/decisions`: all four groups render with counts; candidates appear in insertion order inside each group; entries show name, reviewer, reason, recorded time, coverage line, and review link; empty groups show an empty state; the framing line is present.
+- [x] Verify the navigation shows Candidates, Roles, and Decisions, and each link routes correctly.
+- [x] Verify the page loads records without any model call and without writes.
+- [x] Confirm no ranking, score, or selection marks anywhere in the rendered page.
+- [x] State clearly which items were verified by execution and which only by reading code.
