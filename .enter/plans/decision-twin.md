@@ -1,57 +1,50 @@
-# DecisionTwin — The theatre of deliberation
+# DecisionTwin — One editorial design system
 
 ## Context
-The existing evidence animation feels too much like a UI demo. Turn the landing hero into a cinematic, classical sculpture scene: Greek-inspired wisdom and deliberation, with Rodin’s **The Thinker** as the monumental backdrop. (The Thinker is not a Greek god; the composition combines these references deliberately.)
+You confirmed that the **new Thinker landing page** should set the style for the whole app: ivory, bronze, editorial typography, and the fingerprint + DecisionTwin logo. The existing animation’s native playback bar looks out of place.
 
-Replace the problem headline exactly with: **“A hiring score tells you the answer, not the evidence.”**
+Main was fetched at the start and inspected (`bbfde74`); current workspace changes remain intact. This is a frontend presentation/navigation consistency pass, not a change to hiring logic or stored data.
 
-Current GitHub main was fetched successfully and inspected at `bbfde74`. Keep main’s fixes and all subsequent workspace changes; no branch reset or overwrite.
+## Recommended changes
+### 1. Quiet animation controls
+Remove the native slider, percentage readout, speed label, and circular button row. Replace them with compact **Pause motion / Resume motion** and **Replay** text-and-icon actions aligned with the scene caption. Keep the five chapter selectors as the direct way to revisit a step. Retain the 0.5× loop, synchronized pause, reduced-motion state, and evidence mappings. Do not change the sculpture art or animation sequence.
 
-## Recommended direction
-**An illuminated museum installation, not a cartoon or another glowing dashboard.** Warm ivory canvas, monumental bronze sculpture, architectural framing, oversized editorial type, and evidence suspended in depth. Keep the existing Fraunces/Instrument Sans fonts.
+### 2. One recognizable header
+Extract the existing fingerprint + serif wordmark into a reusable `BrandLogo`. Use it in the landing header and in a shared workspace header on every app route—including new-role/candidate forms, evidence review, comparison, and missing-page/candidate states.
 
-Use a rights-verified public-domain/open-license photograph of The Thinker, locally optimized, with a secondary classical Athena-inspired sculptural motif. Animate their lighting, layered depth, and surrounding evidence—not talking faces or an automated god picking the “best” candidate. Source/license must be confirmed before use; if suitable artwork cannot be sourced, ask before substituting generated artwork.
+The logo links home (`/`). Workspace navigation remains **Candidates** and **Roles**, with a bronze underline rather than orange pills. Preserve existing contextual back links; do not duplicate navigation on individual pages.
 
-### Choreography — approximately 19 seconds, retaining 0.5× pace
-1. **Contemplate:** The Thinker anchors the scene immediately. A bronze halo turns behind the sculpture; a slow light sweep and shallow parallax establish depth. Headline and CTA are visible immediately.
-2. **Examine:** Source excerpts lift into the foreground. Luminous curved ribbons carry line 4 to API ownership, then line 5 to Incident response. Citation seals resolve at the destination, rather than generic sparkles everywhere.
-3. **Question:** The Kubernetes search fails to find support. Its incomplete arc becomes an amber question; “Which production Kubernetes workloads have you operated?” appears. Do not present line 6’s database text as Kubernetes evidence.
-4. **Deliberate:** Evidence gathers around the sculptural figure; a restrained balance/decision motif settles as a human-authored decision appears. End with **“Evidence informs. You decide.”** No score, ranking, winner, or automatic hiring outcome.
+### 3. Carry the landing design through the app
+- Warm ivory surfaces, deep ink primary buttons, bronze accents and hairline dividers.
+- Fraunces page/candidate headings, Instrument Sans controls and body copy, monospace only for source/audit details.
+- Consistent page gutters, heading spacing, flatter cards, small corner radii, and clearer form groups.
+- Update candidate dashboard, roles, both forms, review panels, comparison table and not-found state through shared tokens/components, not isolated CSS overrides.
+- Keep green/amber/red/blue evidence statuses distinct, labelled and accessible. Preserve dark-mode legibility without adding a theme toggle.
+- Keep working screens quiet: no statues or decorative continuous animation outside the landing.
 
-The scene is explicitly labelled an **illustrative walkthrough**. Preserve play/pause, scrubbing, and criterion replay; every decorative effect follows the same pause state. Reduced-motion renders a composed, legible end state.
-
-## Scope and layout
-- Change only landing UI, its animation components, artwork, and scoped design-system recipes.
-- At 1280×720, keep the header, headline, CTA, stage, and controls within one desktop screen. At 390px, use a readable vertical composition with the CTA before the scene; scrolling is preferable to shrinking labels.
-- Keep one primary **Get started** action to `/dashboard`.
-- Do not change dashboard, candidate/review flows, backend, fixtures, `src/types.ts`, `src/data/seed.ts`, or project `scripts/`.
-- No new AI service, runtime generation, video, WebGL, or animation dependency. Reuse existing React, CSS/SVG, and installed motion utilities only where needed.
+## Critical files and reuse
+- New: `src/components/brand-logo.tsx`, `src/components/app-shell.tsx`.
+- Header/navigation: `src/components/main-nav.tsx`, `src/router.tsx`, `src/pages/Landing.tsx`.
+- Controls: `src/components/hero-mechanism.tsx`; reuse `useHeroTimeline` and existing chapter actions.
+- System: `src/index.css`, `tailwind.config.ts`, shared `ui/button.tsx` and `ui/card.tsx`; adapt existing status/form components where required.
+- Pages: `Index.tsx`, `Roles.tsx`, `NewRole.tsx`, `NewCandidate.tsx`, `Compare.tsx`, `Review.tsx`, `NotFound.tsx`.
 
 ## Implementation checklist
-- [x] Update `src/pages/Landing.tsx` with the exact headline and compact stage-led composition, retaining `/dashboard` navigation.
-- [x] Add rights-verified, optimized sculpture artwork under `public/` with source attribution available in the UI; reserve explicit image dimensions.
-- [x] Refactor `src/components/hero-mechanism.tsx` into a small orchestrator plus focused sculpture-stage/evidence components under `src/components/hero/`; reuse the existing timeline windows, evidence mappings, `cn`, and semantic status labels.
-- [x] Add landing-scoped HSL tokens, lighting/layering recipes, and motion rules in `src/index.css`; expose new tokens in `tailwind.config.ts` if needed without changing existing app colors.
-- [x] Synchronize sculpture lighting, evidence ribbons, seals, missing-evidence question, and human-decision phase to one controllable timeline.
-- [x] Keep pause/play, keyboard scrubbing, and criterion replay functional on mouse, touch, and keyboard; prevent stuck interaction/pause state.
-- [x] Stop animation work while paused, offscreen, or in a hidden tab; clean up listeners/observers and avoid per-frame whole-page React renders.
-- [x] Preserve reduced-motion, visible first-paint content, a clear illustrative label, and no backend/model calls on landing mount.
+- [ ] Replace the landing slider/control bar with compact accessible pause/resume/replay actions and retain chapter selection.
+- [ ] Extract `BrandLogo`; render the same fingerprint/wordmark at the top left on landing and all app routes.
+- [ ] Add the shared app shell/header, underline-style navigation, and consistent workspace content widths; remove duplicated page navigation/brand headings.
+- [ ] Promote the approved ivory/ink/bronze palette and small-radius editorial recipes into the shared HSL token system, including matching dark tokens.
+- [ ] Align dashboard cards, role panels, form sections, review/source panels and comparison surfaces to the shared system without changing event handlers, data transformations or conditional states.
+- [ ] Replace remaining hard-coded status/error colors in affected UI with existing semantic tokens; preserve all evidence meanings and labels.
+- [ ] Preserve responsive layouts, visible keyboard focus, touch targets, table scrolling, and reduced-motion behavior.
+- [ ] Leave backend, generated integrations, state/services/hooks, fixtures, `src/types.ts`, and project `scripts/` untouched; preserve workspace-scoped saves and reason-length rules.
 
 ## Verification checklist
-- [x] Run `pnpm lint`, `pnpm exec tsc --noEmit`, and `pnpm run build`.
-- [x] Inspect entry/build configuration; run production baseline and final `pnpm run build:prod` plus the frontend-performance manifest audit. Report pre-existing warnings/exemptions separately; no unrelated architecture rewrite.
-- [x] Inspect `/` at `desktop_1280` and `mobile_390`: exact headline, readable contrast, sculpture visibility, CTA placement, no horizontal overflow, desktop one-screen fit.
-- [x] Exercise a full timeline: line 4/API and line 5/Incident response connect correctly; Kubernetes never gets a verified seal; interview evidence remains unverified; only a human records the final decision.
-- [x] Exercise pause/resume, scrub to start/end, criterion replay, touch release, keyboard focus, reduced-motion, and navigation to `/dashboard`; confirm no data mutations from the illustrative hero.
-- [x] Check browser logs and, where browser tooling permits, capture full-cycle playback and runtime performance. Distinguish actual interaction tests from code inspection; report browser performance and deployment HTTP as unverified if measurement is unavailable.
-- [x] Review final diff to confirm protected files and main’s workspace-review fixes are untouched.
-
-## Delivery evidence and limits
-- Implementation complete. Additional narrowly scoped files: `src/components/ui/button.tsx` adds a museum-only variant; `index.html` preloads the 37,298-byte Thinker asset. Athena adds 9,464 bytes. No application dependencies added.
-- **Builds: passed.** `pnpm lint`, `pnpm exec tsc --noEmit`, `pnpm run build`, and `pnpm run build:prod --manifest` passed on final source. Existing dependency directive and large-chunk warnings remain.
-- **Functional regression: passed.** Chromium production tests covered all five phases, source mappings, no Kubernetes verification, pause of every animated layer, start/end scrubbing, keyboard seeking, criterion inspection, complete approximately 19-second loop, reduced-motion including clicks, `/dashboard` navigation, touch input, and offscreen suspension. No page errors. Hidden-tab logic inspected, not independently execution-tested.
-- **Visual verification: passed at assumed targets.** `/` at 1280×720 is exactly one screen (document 1280×720); 390px has no horizontal overflow, readable stacked layout and CTA preceding the stage. Full-cycle video inspected: no wrong criterion connections, overlapping text, flashing, or blank frames. Sculpture is a composited 2D photograph, not a 3D model.
-- **Strict build audit: failed budgets / existing warnings, not waived.** Hybrid route manifest audit ran with default budgets. Landing JS is 832,013 raw bytes / 211,307 Brotli-estimated bytes (baseline 831,700 / 211,073); CSS 103,078 raw bytes. Existing synchronous app/SDK graph, public CSR HTML without static content/canonical/JSON-LD, conditional browser ponyfill classification, platform-injected remote font stylesheet, and three active font families remain outside this visual-change scope. No claims of SSG or public SEO completion.
-- **Browser performance: measured, fails target.** Five cold local-production loads each at 390×844/DPR2, CPU4×, RTT150ms and 1.6Mbps; local server delivers uncompressed artifacts, not deployed CDN transfer. Median FCP/LCP changed from 5.492s/5.492s to 5.852s/5.852s; final worst LCP 5.856s. CLS is 0.0151 (baseline 0.000064), below 0.1. Final loads each had two long tasks, longest 240–257ms. Thus no first-paint/performance improvement claimed; the new visual adds approximately 0.36s under this controlled test. Interaction latency/field INP not measured.
-- **Deployment HTTP: unverified.** No published-site cache/encoding/HTML checks. Platform-injected font and public-rendering behavior need separate follow-up, not a broad rewrite in this request.
-- Evidence is in `/workspace/decision-final-results.json`, `/workspace/decision-final-audit.json`, and `/workspace/decision-hero-video/`; these are local QA artifacts, not app runtime files. Main’s workspace-review fixes, protected fixtures/types/scripts, and backend paths have no changes.
+- [ ] Run `pnpm lint`, `pnpm exec tsc --noEmit`, `pnpm run build`, and `pnpm run build:prod --manifest`.
+- [ ] Check every route via browser DOM/navigation for one top-left logo and a working logo home link; include unknown route and missing candidate.
+- [ ] Verify landing has no slider/percentage bar; pause/resume freezes all layers, replay restarts, chapters select the correct state, and reduced motion stays still.
+- [ ] Exercise dashboard-to-review, roles navigation, compare criterion deep links, form entry/numbered preview, empty/disabled form states, and contextual back links. Do not generate evidence or save/delete real records as a styling test.
+- [ ] Capture the representative workspace route `/dashboard` at `desktop_1280` and `mobile_390`; verify the separately changed landing controls at those viewports. Do not sweep unchanged routes with screenshots.
+- [ ] Check browser/runtime errors and keyboard/touch behavior; distinguish executed tests from code inspection.
+- [ ] Run baseline/final production artifact audits and controlled browser checks where available. Report existing bundle/public-HTML/font issues rather than expanding into an unrelated performance or rendering rewrite; deployment HTTP remains unverified without a published-site check.
+- [ ] Review the final diff to confirm no protected data/backend behavior changed.
