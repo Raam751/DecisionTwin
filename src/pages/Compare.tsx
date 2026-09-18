@@ -24,7 +24,7 @@ const Compare = () => {
 
   return (
     <div className="min-h-full bg-background">
-      <div className="mx-auto max-w-6xl px-6 py-10 md:px-10">
+      <div className="workspace-container">
         <button
           onClick={() => navigate("/dashboard")}
           className="group inline-flex items-center gap-1 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
@@ -36,7 +36,7 @@ const Compare = () => {
         <header className="mt-8">
           <div className="flex items-center gap-2.5">
             <Table2 className="h-5 w-5 text-primary" />
-            <h1 className="text-3xl font-bold tracking-tight">
+            <h1 className="workspace-title">
               Compare candidates
             </h1>
           </div>
@@ -183,13 +183,13 @@ const Compare = () => {
                                     <StatusBadge status={item.status} />
                                     {item.status === "supported" &&
                                       item.citationVerified && (
-                                        <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-700">
+                                        <span className="inline-flex items-center gap-1 text-[11px] font-medium text-supported">
                                           <BadgeCheck className="h-3.5 w-3.5" />
                                           Verified
                                         </span>
                                       )}
                                     {item.recordedAtInterview ? (
-                                      <span className="inline-flex items-center gap-1 text-[11px] font-medium text-sky-700">
+                                      <span className="inline-flex items-center gap-1 text-[11px] font-medium text-interview">
                                         <Mic className="h-3.5 w-3.5" />
                                         Recorded at interview
                                       </span>

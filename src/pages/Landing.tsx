@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
-import { ArrowRight, Fingerprint } from "lucide-react";
+import { ArrowRight } from "lucide-react";
+import { BrandLogo } from "@/components/brand-logo";
 import { Button } from "@/components/ui/button";
 import { HeroMechanism } from "@/components/hero-mechanism";
 
@@ -9,7 +10,7 @@ const Landing = () => {
     <div className="landing-museum">
       <div className="museum-layout">
         <header className="museum-header">
-          <p className="museum-wordmark"><Fingerprint size={25} strokeWidth={1.35} />DecisionTwin</p>
+          <BrandLogo />
           <p>EVIDENCE OVER INSTINCT.</p>
         </header>
         <main className="museum-main">

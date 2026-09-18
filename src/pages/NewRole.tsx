@@ -111,7 +111,7 @@ const NewRole = () => {
 
   return (
     <div className="min-h-full bg-background">
-      <div className="mx-auto max-w-3xl px-6 py-10 md:px-10">
+      <div className="workspace-container workspace-container-form">
         <button
           onClick={() => navigate("/dashboard")}
           className="group inline-flex items-center gap-1 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
@@ -121,14 +121,14 @@ const NewRole = () => {
         </button>
 
         <header className="mt-8">
-          <h1 className="text-4xl font-bold tracking-tight">New role</h1>
+          <h1 className="workspace-title">New role</h1>
           <p className="mt-2 text-sm text-muted-foreground">
             Paste the job description. The model drafts the criteria, you decide
             what counts as evidence.
           </p>
         </header>
 
-        <section className="mt-10 rounded-2xl border bg-card p-5">
+        <section className="card-surface workspace-form-panel mt-8">
           <label
             htmlFor="role-title"
             className="block text-xs font-semibold uppercase tracking-widest text-muted-foreground"
@@ -222,11 +222,11 @@ const NewRole = () => {
           </div>
 
           {error && (
-            <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-3">
-              <p className="text-xs font-semibold uppercase tracking-wider text-rose-800">
+            <div className="mt-4 rounded-xl border border-conflicting/30 bg-conflicting-soft p-3">
+              <p className="text-xs font-semibold uppercase tracking-wider text-conflicting">
                 Extraction failed
               </p>
-              <p className="mt-1 text-xs leading-relaxed text-rose-900">{error}</p>
+              <p className="mt-1 text-xs leading-relaxed text-conflicting">{error}</p>
             </div>
           )}
         </section>
@@ -265,7 +265,7 @@ const NewRole = () => {
                     <button
                       type="button"
                       onClick={() => removeCriterion(index)}
-                      className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground transition-colors hover:text-rose-700"
+                      className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground transition-colors hover:text-conflicting"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                       Remove
@@ -313,7 +313,7 @@ const NewRole = () => {
               <span
                 className={cn(
                   "text-xs",
-                  canSave ? "text-muted-foreground" : "text-amber-700",
+                  canSave ? "text-muted-foreground" : "text-uncertain",
                 )}
               >
                 {canSave
@@ -323,11 +323,11 @@ const NewRole = () => {
             </div>
 
             {saveError && (
-              <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-3">
-                <p className="text-xs font-semibold uppercase tracking-wider text-rose-800">
+              <div className="mt-4 rounded-xl border border-conflicting/30 bg-conflicting-soft p-3">
+                <p className="text-xs font-semibold uppercase tracking-wider text-conflicting">
                   Save failed
                 </p>
-                <p className="mt-1 text-xs leading-relaxed text-rose-900">
+                <p className="mt-1 text-xs leading-relaxed text-conflicting">
                   {saveError}
                 </p>
               </div>

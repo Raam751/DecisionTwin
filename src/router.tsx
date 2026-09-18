@@ -1,3 +1,4 @@
+import { AppShell } from "./components/app-shell";
 import Compare from "./pages/Compare";
 import Index from "./pages/Index";
 import Landing from "./pages/Landing";
@@ -16,38 +17,38 @@ export const routers = [
   {
     path: "/dashboard",
     name: "dashboard",
-    element: <Index />,
+    element: <AppShell><Index /></AppShell>,
   },
   {
     path: "/roles",
     name: "roles",
-    element: <Roles />,
+    element: <AppShell><Roles /></AppShell>,
   },
   {
     path: "/roles/new",
     name: "new-role",
-    element: <NewRole />,
+    element: <AppShell><NewRole /></AppShell>,
   },
   {
     path: "/candidates/new",
     name: "new-candidate",
-    element: <NewCandidate />,
+    element: <AppShell><NewCandidate /></AppShell>,
   },
   {
     path: "/review/:candidateId",
     name: "review",
-    element: <Review />,
+    element: <AppShell><Review /></AppShell>,
   },
   {
     path: "/compare",
     name: "compare",
-    element: <Compare />,
+    element: <AppShell><Compare /></AppShell>,
   },
   /* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */
   {
     path: "*",
     name: "404",
-    element: <NotFound />,
+    element: <AppShell><NotFound /></AppShell>,
   },
 ];
 

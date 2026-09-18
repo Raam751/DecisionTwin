@@ -4,7 +4,6 @@ import { Check, CircleDashed, Plus, Table2, UsersRound } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { MainNav } from "@/components/main-nav";
 import { useRoleRecords } from "@/hooks/use-role-records";
 import { useRoles } from "@/state/roles-store";
 import { cn } from "@/lib/utils";
@@ -95,12 +94,11 @@ const Roles = () => {
 
   return (
     <div className="min-h-full bg-background">
-      <div className="mx-auto max-w-5xl px-6 py-10 md:px-10">
-        <MainNav />
-
-        <header className="mt-8 flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
+      <div className="workspace-container">
+        <header className="workspace-page-heading flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
           <div className="max-w-2xl">
-            <h1 className="text-4xl font-bold tracking-tight">Roles</h1>
+            <p className="eyebrow mb-3">Your workspace</p>
+            <h1 className="workspace-title">Roles</h1>
             <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
               Every role in this workspace. The active role drives the candidate
               list, the compare matrix and the review screens.

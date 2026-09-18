@@ -3,7 +3,6 @@ import { Plus, Table2, UserPlus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { MainNav } from "@/components/main-nav";
 import { useRoles } from "@/state/roles-store";
 
 const Index = () => {
@@ -12,17 +11,14 @@ const Index = () => {
 
   return (
     <div className="min-h-full bg-background">
-      <div className="mx-auto max-w-5xl px-6 py-10 md:px-10">
-        <MainNav />
-
-        <header className="mt-8 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-          <h1 className="text-2xl font-bold tracking-tight">DecisionTwin</h1>
-          <p className="text-sm text-muted-foreground">
-            The auditable hiring decision twin
-          </p>
+      <div className="workspace-container">
+        <header className="workspace-page-heading">
+          <p className="eyebrow">Your workspace</p>
+          <h1 className="workspace-title">Candidates</h1>
+          <p className="workspace-description">Start with the source. Build a decision you can stand behind.</p>
         </header>
 
-        <section className="mt-14">
+        <section className="workspace-role-panel">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
               Role
@@ -38,7 +34,7 @@ const Index = () => {
           </div>
 
           <div className="mt-3 flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
-            <h2 className="text-4xl font-bold tracking-tight">
+            <h2 className="font-serif text-3xl font-medium tracking-tight text-ink">
               {activeRole.title}
             </h2>
             {roles.length > 1 && (
@@ -71,7 +67,7 @@ const Index = () => {
           </div>
         </section>
 
-        <section className="mt-14">
+        <section className="mt-8">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
               Candidates
@@ -103,9 +99,9 @@ const Index = () => {
           ) : (
             <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-3">
               {activeCandidates.map((candidate) => (
-                <Card key={candidate.id} className="flex flex-col">
+                <Card key={candidate.id} className="workspace-candidate-card flex flex-col">
                   <CardContent className="flex flex-1 flex-col p-6">
-                    <h3 className="text-lg font-bold">{candidate.name}</h3>
+                    <h3 className="font-serif text-2xl font-medium tracking-tight">{candidate.name}</h3>
                     <p className="mt-1 text-sm text-muted-foreground">
                       {candidate.documentTitle}
                     </p>
