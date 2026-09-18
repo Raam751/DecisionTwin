@@ -104,6 +104,15 @@ export default {
 					ring: 'hsl(var(--sidebar-ring))'
 				}
 			},
+			borderRadius: {
+				sm: '2px',
+				DEFAULT: '3px',
+				md: '4px',
+				lg: '4px',
+				xl: '6px',
+				'2xl': '8px',
+				'3xl': '12px',
+			},
 			fontFamily: {
 				sans: [
 					'"Instrument Sans Variable"',

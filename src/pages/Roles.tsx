@@ -4,7 +4,6 @@ import { Check, CircleDashed, Plus, Table2, UsersRound } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { MainNav } from "@/components/main-nav";
 import { useRoleRecords } from "@/hooks/use-role-records";
 import { useRoles } from "@/state/roles-store";
 import { cn } from "@/lib/utils";
@@ -85,7 +84,7 @@ const Roles = () => {
 
   const openRoleCandidates = (roleId: string) => {
     setActiveRoleId(roleId);
-    navigate("/");
+    navigate("/dashboard");
   };
 
   const openRoleCompare = (roleId: string) => {
@@ -95,12 +94,11 @@ const Roles = () => {
 
   return (
     <div className="min-h-full bg-background">
-      <div className="mx-auto max-w-5xl px-6 py-10 md:px-10">
-        <MainNav />
-
-        <header className="mt-8 flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
+      <div className="workspace-container">
+        <header className="workspace-page-heading flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
           <div className="max-w-2xl">
-            <h1 className="text-4xl font-bold tracking-tight">Roles</h1>
+            <p className="eyebrow mb-3">Your workspace</p>
+            <h1 className="workspace-title">Roles</h1>
             <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
               Every role in this workspace. The active role drives the candidate
               list, the compare matrix and the review screens.
@@ -182,37 +180,46 @@ const Roles = () => {
                         </p>
                       ) : (
                         <>
-                          <p
-                            className={cn(
-                              "flex items-start gap-2",
-                              coverage.essentialCovered < coverage.essentialTotal
-                                ? "text-ink"
-                                : "text-muted-foreground",
-                            )}
-                          >
-                            <Check
-                              aria-hidden
+                          {coverage.essentialTotal > 0 && (
+                            <p
                               className={cn(
-                                "mt-0.5 h-4 w-4 shrink-0",
-                                coverage.essentialCovered < coverage.essentialTotal
-                                  ? "text-essential"
-                                  : "text-supported",
+                                "flex items-start gap-2",
+                                coverage.essentialCovered <
+                                  coverage.essentialTotal
+                                  ? "text-ink"
+                                  : "text-muted-foreground",
                               )}
-                            />
-                            Essential:{" "}
-                            {coverage.essentialCovered} of{" "}
-                            {coverage.essentialTotal} criteria covered by at
-                            least one candidate
-                          </p>
-                          <p className="flex items-start gap-2 text-muted-foreground">
-                            <Check
-                              aria-hidden
-                              className="mt-0.5 h-4 w-4 shrink-0 text-supported"
-                            />
-                            Desirable: {coverage.desirableCovered} of{" "}
-                            {coverage.desirableTotal} criteria covered by at
-                            least one candidate
-                          </p>
+                            >
+                              <Check
+                                aria-hidden
+                                className={cn(
+                                  "mt-0.5 h-4 w-4 shrink-0",
+                                  coverage.essentialCovered <
+                                    coverage.essentialTotal
+                                    ? "text-essential"
+                                    : "text-supported",
+                                )}
+                              />
+                              Across the candidate pool,{" "}
+                              {coverage.essentialCovered} of{" "}
+                              {coverage.essentialTotal} essential criteria
+                              are supported by at least one candidate —
+                              not necessarily the same candidate.
+                            </p>
+                          )}
+                          {coverage.desirableTotal > 0 && (
+                            <p className="flex items-start gap-2 text-muted-foreground">
+                              <Check
+                                aria-hidden
+                                className="mt-0.5 h-4 w-4 shrink-0 text-supported"
+                              />
+                              Across the candidate pool,{" "}
+                              {coverage.desirableCovered} of{" "}
+                              {coverage.desirableTotal} desirable criteria
+                              are supported by at least one candidate — not
+                              necessarily the same candidate.
+                            </p>
+                          )}
                         </>
                       )}
                     </div>

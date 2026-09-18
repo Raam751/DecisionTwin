@@ -234,7 +234,7 @@ const Review = () => {
 
   if (!candidate) {
     return (
-      <div className="flex min-h-full items-center justify-center bg-background p-6">
+      <div className="workspace-empty-page">
         <div className="card-surface max-w-md p-8 text-center">
           <h1 className="font-serif text-2xl font-semibold text-ink">
             Candidate not found
@@ -242,7 +242,7 @@ const Review = () => {
           <p className="mt-3 text-sm text-muted-foreground">
             That candidate is not part of the active role in this session.
           </p>
-          <Button className="mt-6" onClick={() => navigate("/")}>
+          <Button className="mt-6" onClick={() => navigate("/dashboard")}>
             Back to candidates
           </Button>
         </div>
@@ -266,10 +266,10 @@ const Review = () => {
 
   return (
     <div className="min-h-full bg-background">
-      <div className="mx-auto max-w-[1180px] px-5 py-8 md:px-10 md:py-12">
+      <div className="workspace-container">
         <button
           type="button"
-          onClick={() => navigate("/")}
+          onClick={() => navigate("/dashboard")}
           className="focus-ring group inline-flex items-center gap-1.5 rounded-lg text-sm font-medium text-muted-foreground transition-colors hover:text-ink"
         >
           <ChevronLeft
@@ -282,7 +282,7 @@ const Review = () => {
         <header className="mt-8 flex flex-wrap items-end justify-between gap-x-10 gap-y-6">
           <div className="min-w-0">
             <p className="eyebrow">Evidence review · {role.title}</p>
-            <h1 className="mt-3 font-serif text-4xl font-semibold leading-[1.05] tracking-tight text-ink md:text-[52px]">
+            <h1 className="workspace-title mt-3">
               {candidate.name}
             </h1>
             <p className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
@@ -500,7 +500,7 @@ const Review = () => {
                         className={cn(
                           "relative overflow-hidden rounded-2xl border border-line bg-card shadow-card transition-all duration-200",
                           isActive && "border-brand/45 ring-2 ring-brand/25",
-                          clickable && "hover:-translate-y-px hover:shadow-lift",
+                          clickable && "hover:border-brand/40",
                         )}
                       >
                         <span
