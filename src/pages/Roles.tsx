@@ -116,7 +116,7 @@ const Roles = () => {
               <p className="eyebrow">Fresh workspace</p>
               <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
                 The seeded Platform Engineer example is here to get you going.
-                Paste a real job description to add your first role — it will be
+                Paste a real job description to add your first role. It will be
                 kept for this workspace from then on.
               </p>
             </div>
@@ -203,7 +203,7 @@ const Roles = () => {
                               Across the candidate pool,{" "}
                               {coverage.essentialCovered} of{" "}
                               {coverage.essentialTotal} essential criteria
-                              are supported by at least one candidate —
+                              are supported by at least one candidate, though
                               not necessarily the same candidate.
                             </p>
                           )}
@@ -216,7 +216,7 @@ const Roles = () => {
                               Across the candidate pool,{" "}
                               {coverage.desirableCovered} of{" "}
                               {coverage.desirableTotal} desirable criteria
-                              are supported by at least one candidate — not
+                              are supported by at least one candidate, though not
                               necessarily the same candidate.
                             </p>
                           )}

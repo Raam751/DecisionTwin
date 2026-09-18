@@ -154,13 +154,13 @@ const NewRole = () => {
             value={jobDescription}
             onChange={(event) => setJobDescription(event.target.value)}
             rows={12}
-            placeholder="Paste the real job description for the role, exactly as it is — including the responsibilities and the requirements."
+            placeholder="Paste the real job description for the role, exactly as it is, including the responsibilities and the requirements."
             className="mt-3 w-full resize-y rounded-lg border bg-background px-3 py-2 text-sm leading-relaxed text-foreground placeholder:text-muted-foreground/70"
           />
 
           <div className="mt-3 space-y-2.5 text-xs leading-relaxed text-muted-foreground">
             <p>
-              The criteria are extracted from this wording — the more specific
+              The criteria are extracted from this wording, so the more specific
               it is, the better the criteria will be.
             </p>
             <p>

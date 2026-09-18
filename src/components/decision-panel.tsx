@@ -4,7 +4,7 @@ import { CheckCircle2, Gavel, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { REVIEWERS } from "@/hooks/use-evidence-record";
 import { cn } from "@/lib/utils";
-import type { HumanDecision } from "@/types";
+import type { HumanDecision, StageDecision } from "@/types";
 
 const DISPOSITIONS = [
   "Advance to interview",
@@ -15,13 +15,51 @@ const DISPOSITIONS = [
 const MIN_REASON = 10;
 
 interface DecisionPanelProps {
+  /** The decision for the current stage only, or null when none is recorded. */
   decision: HumanDecision | null;
+  /** Decisions recorded in earlier stages, shown read only, in stage order. */
+  history: StageDecision[];
   reviewer: string;
   unresolvedCount: number;
   stage: string;
   onReviewerChange: (name: string) => void;
   onSave: (disposition: string, reason: string) => void;
   onClear: () => void;
+}
+
+/** Earlier stages' decisions, read only. They cannot be edited from here. */
+function StageHistory({ history }: { history: StageDecision[] }) {
+  if (history.length === 0) return null;
+
+  return (
+    <div className="mt-5 border-t border-line pt-4">
+      <p className="eyebrow">Earlier stages</p>
+      <ul className="mt-3 space-y-3">
+        {history.map((entry) => (
+          <li
+            key={`${entry.stage}-${entry.timestamp}`}
+            className="rounded-xl border border-line bg-surface px-3.5 py-3"
+          >
+            <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+              <p className="text-xs font-semibold text-ink">
+                {entry.stage}: {entry.disposition}
+              </p>
+              <span className="font-mono text-2xs text-muted-foreground">
+                {formatWhen(entry.timestamp)}
+              </span>
+            </div>
+            <p className="mt-1.5 text-xs leading-relaxed text-ink/80">
+              {entry.reason}
+            </p>
+            <p className="mt-1.5 inline-flex items-center gap-1.5 text-2xs text-muted-foreground">
+              <UserRound aria-hidden className="h-3 w-3" />
+              {entry.reviewerName}
+            </p>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
 }
 
 const formatWhen = (iso: string) =>
@@ -35,6 +73,7 @@ const formatWhen = (iso: string) =>
 
 export function DecisionPanel({
   decision,
+  history,
   reviewer,
   unresolvedCount,
   stage,
@@ -87,8 +126,10 @@ export function DecisionPanel({
               onClear();
             }}
           >
-            Change decision
+            Change the {stage} decision
           </Button>
+
+          <StageHistory history={history} />
         </div>
       </div>
     );
@@ -189,6 +230,8 @@ export function DecisionPanel({
                 : `${reasonLength} of 10 characters`}
         </p>
       </div>
+
+      <StageHistory history={history} />
     </div>
   );
 }

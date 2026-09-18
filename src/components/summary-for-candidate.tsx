@@ -74,7 +74,7 @@ export function SummaryForCandidate({
 
     const evidence = record.evidence.map((item) => {
       const quote = item.quotedText ? ` “${item.quotedText}”` : "";
-      return `${labelOf(item.criterionId)} : ${titleCase(item.status)}.${quote} ${titleCase(whereOf(item))}.`;
+      return `${labelOf(item.criterionId)}: ${titleCase(item.status)}.${quote} ${titleCase(whereOf(item))}.`;
     });
 
     const unverified = record.evidence
@@ -126,7 +126,9 @@ export function SummaryForCandidate({
     const decision = record.humanDecision
       ? [
           `${record.humanDecision.disposition}${
-            record.humanDecision.reason ? ` : ${record.humanDecision.reason}` : ""
+            record.humanDecision.reason
+              ? `. Reason: ${record.humanDecision.reason}`
+              : ""
           }${
             record.humanDecision.reviewerName
               ? ` Recorded by ${record.humanDecision.reviewerName} on ${formatWhen(record.humanDecision.timestamp)}.`
@@ -213,7 +215,7 @@ export function SummaryForCandidate({
 
       <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
         What the record evidences, where, what is still open, and how the
-        decision was reached. A view of the record only: nothing is added here.
+        decision was reached. A view of the record only, nothing is added here.
       </p>
 
       <div className="mt-5 space-y-5 divide-y divide-line [&>*+*]:pt-5">
