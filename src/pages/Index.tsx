@@ -7,7 +7,7 @@ import { useRoles } from "@/state/roles-store";
 
 const Index = () => {
   const navigate = useNavigate();
-  const { roles, activeRole, activeCandidates, setActiveRoleId } = useRoles();
+  const { activeRole, activeCandidates } = useRoles();
 
   return (
     <div className="min-h-full bg-background">
@@ -33,26 +33,10 @@ const Index = () => {
             </Button>
           </div>
 
-          <div className="mt-3 flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+          <div className="mt-3">
             <h2 className="font-serif text-3xl font-medium tracking-tight text-ink">
               {activeRole.title}
             </h2>
-            {roles.length > 1 && (
-              <label className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-                Active role
-                <select
-                  value={activeRole.id}
-                  onChange={(event) => setActiveRoleId(event.target.value)}
-                  className="rounded-lg border bg-background px-3 py-1.5 text-sm text-foreground"
-                >
-                  {roles.map((role) => (
-                    <option key={role.id} value={role.id}>
-                      {role.title}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            )}
           </div>
 
           <div className="mt-5 flex flex-wrap gap-2">
