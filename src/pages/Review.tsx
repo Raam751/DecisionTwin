@@ -8,7 +8,7 @@ import { ReplayPanel } from "@/components/replay-panel";
 import SourceDocument from "@/components/source-document";
 import { StatusBadge } from "@/components/status-badge";
 import { REVIEWERS, useEvidenceRecord } from "@/hooks/use-evidence-record";
-import { generateEvidence } from "@/services/evidence-api";
+import { fetchStoredRecord, generateEvidence } from "@/services/evidence-api";
 import { cn } from "@/lib/utils";
 import {
   candidates,
@@ -50,7 +50,28 @@ const Review = () => {
   const [generating, setGenerating] = useState(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
   const [rejectedCitations, setRejectedCitations] = useState<string[]>([]);
-  const [isGenerated, setIsGenerated] = useState(false);
+  const [source, setSource] = useState<"seed" | "stored" | "fresh">("seed");
+
+  // Load a stored record if one exists, so a record generated earlier reloads
+  // instantly instead of calling the model again. Falls back to the seeded
+  // example silently if the table is empty or unreachable.
+  useEffect(() => {
+    if (!candidate) return;
+    let cancelled = false;
+    setSource("seed");
+    setRejectedCitations([]);
+    setGenerateError(null);
+
+    fetchStoredRecord(candidate.id).then((stored) => {
+      if (cancelled || !stored || stored.evidence.length === 0) return;
+      replaceRecord(stored);
+      setSource("stored");
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [candidate?.id, replaceRecord]);
 
   const runGeneration = async () => {
     if (!candidate) return;
@@ -61,7 +82,7 @@ const Review = () => {
       const result = await generateEvidence(role, candidate);
       replaceRecord(result.record);
       setRejectedCitations(result.rejectedCitations);
-      setIsGenerated(true);
+      setSource("fresh");
     } catch (error) {
       setGenerateError((error as Error).message);
     } finally {
@@ -156,14 +177,16 @@ const Review = () => {
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <p className="text-sm font-semibold">
-                    {isGenerated
+                    {source === "fresh"
                       ? "Evidence drafted by the model"
-                      : "Evidence source"}
+                      : source === "stored"
+                        ? "Evidence record loaded from store"
+                        : "Reference evidence record"}
                   </p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    {isGenerated
-                      ? "Every citation below was checked against the source document on the server."
-                      : "Showing a stored record. Run the model to draft evidence from the document."}
+                    {source === "seed"
+                      ? "Showing a reference record. Run the model to draft evidence from the document."
+                      : "Every citation below was checked against the source document on the server."}
                   </p>
                 </div>
                 <button
@@ -179,9 +202,9 @@ const Review = () => {
                 >
                   {generating
                     ? "Reading document, linking evidence, verifying citations"
-                    : isGenerated
-                      ? "Regenerate"
-                      : "Generate evidence"}
+                    : source === "seed"
+                      ? "Generate evidence"
+                      : "Regenerate"}
                 </button>
               </div>
 
@@ -208,18 +231,18 @@ const Review = () => {
                   <p className="mt-1 text-xs leading-relaxed text-rose-900">
                     {generateError}
                   </p>
-                  {isGenerated && (
+                  {source !== "seed" && (
                     <button
                       type="button"
                       onClick={() => {
                         resetRecord();
-                        setIsGenerated(false);
+                        setSource("seed");
                         setGenerateError(null);
                         setRejectedCitations([]);
                       }}
                       className="mt-2 text-xs font-medium text-primary hover:underline"
                     >
-                      Fall back to the stored record
+                      Fall back to the reference record
                     </button>
                   )}
                 </div>
