@@ -1,0 +1,1 @@
+delete from public.roles where workspace_id = 'scratch-1789739509327';

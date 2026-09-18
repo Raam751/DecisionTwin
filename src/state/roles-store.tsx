@@ -29,6 +29,25 @@ const cloneCandidate = (candidate: Candidate): Candidate => ({
   documentLines: candidate.documentLines.map((line) => ({ ...line })),
 });
 
+const ACTIVE_ROLE_KEY = "decisiontwin.activeRoleId";
+
+/** The role selected last time this browser used the app, when still known. */
+const rememberedActiveRoleId = (): string => {
+  try {
+    return localStorage.getItem(ACTIVE_ROLE_KEY) || platformEngineerRole.id;
+  } catch {
+    return platformEngineerRole.id;
+  }
+};
+
+const rememberActiveRole = (roleId: string) => {
+  try {
+    localStorage.setItem(ACTIVE_ROLE_KEY, roleId);
+  } catch {
+    // Storage unavailable; the choice just won't survive a reload.
+  }
+};
+
 interface RolesContextValue {
   /** Every role for this workspace, the seeded one first. */
   roles: Role[];
@@ -52,7 +71,7 @@ export function RolesProvider({ children }: { children: ReactNode }) {
   // entries merged in underneath it as soon as they arrive.
   const [roles, setRoles] = useState<Role[]>(() => [cloneRole(platformEngineerRole)]);
   const [activeRoleId, setActiveRoleIdState] = useState<string>(
-    () => platformEngineerRole.id,
+    rememberedActiveRoleId,
   );
   const [candidates, setCandidates] = useState<Candidate[]>(() =>
     seedCandidates.map(cloneCandidate),
@@ -78,8 +97,22 @@ export function RolesProvider({ children }: { children: ReactNode }) {
           (candidate) => !seedCandidateIds.has(candidate.id),
         );
 
-        setRoles((current) => [...current, ...extraRoles]);
-        setCandidates((current) => [...current, ...extraCandidates]);
+        // The provider can mount more than once without its state being
+        // cleared (a hot reload, for example). A role or candidate that is
+        // already in state must never be appended again, or React sees
+        // duplicate keys and drops the role switcher from the page.
+        setRoles((current) => {
+          const known = new Set(current.map((role) => role.id));
+          const fresh = extraRoles.filter((role) => !known.has(role.id));
+          return fresh.length > 0 ? [...current, ...fresh] : current;
+        });
+        setCandidates((current) => {
+          const known = new Set(current.map((candidate) => candidate.id));
+          const fresh = extraCandidates.filter(
+            (candidate) => !known.has(candidate.id),
+          );
+          return fresh.length > 0 ? [...current, ...fresh] : current;
+        });
       })
       .catch(() => {
         // Keep the seeded defaults only.
@@ -104,6 +137,7 @@ export function RolesProvider({ children }: { children: ReactNode }) {
     (roleId: string) => {
       if (!roles.some((role) => role.id === roleId)) return;
       setActiveRoleIdState(roleId);
+      rememberActiveRole(roleId);
     },
     [roles],
   );
@@ -115,8 +149,13 @@ export function RolesProvider({ children }: { children: ReactNode }) {
       jobDescription: role.jobDescription,
       criteria: role.criteria,
     });
-    setRoles((current) => [...current, role]);
+    setRoles((current) =>
+      current.some((existing) => existing.id === role.id)
+        ? current
+        : [...current, role],
+    );
     setActiveRoleIdState(role.id);
+    rememberActiveRole(role.id);
   }, []);
 
   const addCandidate = useCallback(async (candidate: Candidate) => {
@@ -127,7 +166,11 @@ export function RolesProvider({ children }: { children: ReactNode }) {
       documentTitle: candidate.documentTitle,
       documentLines: candidate.documentLines,
     });
-    setCandidates((current) => [...current, candidate]);
+    setCandidates((current) =>
+      current.some((existing) => existing.id === candidate.id)
+        ? current
+        : [...current, candidate],
+    );
   }, []);
 
   const value = useMemo<RolesContextValue>(
