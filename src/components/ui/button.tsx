@@ -11,6 +11,8 @@ const buttonVariants = cva(
       variant: {
         default:
           "bg-primary text-primary-foreground shadow-card hover:bg-brand-deep active:translate-y-px disabled:bg-canvas-deep disabled:text-muted-foreground disabled:shadow-none",
+        museum:
+          "gap-9 rounded-[3px] bg-[hsl(var(--scene-ink))] text-[hsl(var(--scene-paper))] hover:bg-[hsl(var(--scene-bronze))] active:translate-y-px disabled:opacity-50",
         destructive:
           "bg-destructive text-destructive-foreground hover:bg-destructive/90 disabled:opacity-50",
         outline:
