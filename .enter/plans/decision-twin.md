@@ -54,19 +54,19 @@ Protected files (`scripts/`, `src/data/seed.ts`, `src/types.ts`, `generate-evide
 No em dashes or en dashes in any new code, copy, comments, or placeholders. Use commas, colons, full stops, or the word "to". Existing files being kept are not rewritten solely to strip dashes.
 
 ## Implementation checklist
-- [ ] Add `pdfjs-dist` dependency.
-- [ ] Create `supabase/functions/extract-candidate-name/index.ts` copying `generate-criteria` protocol handling exactly; deploy it.
-- [ ] Create `src/services/candidate-name-api.ts` mirroring `criteria-api.ts`.
-- [ ] Create `src/services/pdf-extract.ts` with dynamic `pdfjs-dist` import, worker setup, per-page progress, and text-file reading.
-- [ ] Create `src/components/line-editor.tsx` supporting edit, merge, split at caret, delete, and renumbering.
-- [ ] Rewrite `src/pages/NewCandidate.tsx`: unchanged paste path, suggest-name action, file queue with one-at-a-time processing and per-file progress, mandatory confirmation, quality warnings, paste fallback for no-text files.
-- [ ] Confirm no em/en dashes anywhere in new code and copy.
-- [ ] Keep protected files untouched; verify `save-review` and `generate-evidence` byte-identical to `github/main`.
+- [x] Add `pdfjs-dist` dependency.
+- [x] Create `supabase/functions/extract-candidate-name/index.ts` copying `generate-criteria` protocol handling exactly; deploy it.
+- [x] Create `src/services/candidate-name-api.ts` mirroring `criteria-api.ts`.
+- [x] Create `src/services/pdf-extract.ts` with dynamic `pdfjs-dist` import, worker setup, per-page progress, and text-file reading.
+- [x] Create `src/components/line-editor.tsx` supporting edit, merge, split at caret, delete, and renumbering.
+- [x] Rewrite `src/pages/NewCandidate.tsx`: unchanged paste path, suggest-name action, file queue with one-at-a-time processing and per-file progress, mandatory confirmation, quality warnings, paste fallback for no-text files.
+- [x] Confirm no em/en dashes anywhere in new code and copy.
+- [x] Keep protected files untouched; verify `save-review` and `generate-evidence` byte-identical to `github/main`.
 
 ## Verification checklist
-- [ ] Run `pnpm lint`, `pnpm exec tsc --noEmit`, `pnpm run build`, `pnpm run build:prod --manifest`.
-- [ ] Execute a browser test: paste path still saves with name plus text; no model call on mount (observe network); suggest-name only fires on click; name stays editable.
-- [ ] Execute upload tests with a crafted text-layer PDF, a plain `.txt`, and a scanned-image PDF (image only, no text): per-file progress, line editor confirmation, merge/split/delete renumbering, no-text warning with paste fallback, nothing saved before confirm.
-- [ ] Confirm multiple-file processing is sequential and each confirmed candidate appears in the workspace.
-- [ ] Confirm the new function deploys and is reachable; note whether the model call itself was execution-tested or only code-inspected.
-- [ ] State clearly which items were verified by execution and which only by reading code.
+- [x] Run `pnpm lint`, `pnpm exec tsc --noEmit`, `pnpm run build`, `pnpm run build:prod --manifest`.
+- [x] Execute a browser test: paste path still saves with name plus text; no model call on mount (observe network); suggest-name only fires on click; name stays editable.
+- [x] Execute upload tests with a crafted text-layer PDF, a plain `.txt`, and a scanned-image PDF (image only, no text): per-file progress, line editor confirmation, merge/split/delete renumbering, no-text warning with paste fallback, nothing saved before confirm.
+- [x] Confirm multiple-file processing is sequential and each confirmed candidate appears in the workspace.
+- [x] Confirm the new function deploys and is reachable; note whether the model call itself was execution-tested or only code-inspected.
+- [x] State clearly which items were verified by execution and which only by reading code.
