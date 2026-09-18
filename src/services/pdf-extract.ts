@@ -17,6 +17,24 @@ export const toDocumentLines = (text: string): DocumentLine[] =>
 export type ExtractProgress = (label: string) => void;
 
 /**
+ * pdf.js relies on Promise.withResolvers, which is missing on Safari before
+ * 17.4. The polyfill below installs it only when absent so every supported
+ * browser can extract PDF text. It must be in place before any pdf.js call.
+ */
+function ensurePromiseWithResolvers(): void {
+  if (typeof Promise.withResolvers === "function") return;
+  Promise.withResolvers = function () {
+    let resolve: (value?: unknown) => void = () => {};
+    let reject: (reason?: unknown) => void = () => {};
+    const promise = new Promise((res, rej) => {
+      resolve = res;
+      reject = rej;
+    });
+    return { promise, resolve, reject };
+  } as unknown as typeof Promise.withResolvers;
+}
+
+/**
  * Loads pdfjs-dist only when a PDF is actually being read. The module and its
  * worker asset never join the initial bundle; the worker URL is emitted as a
  * separate asset by Vite and fetched only when a PDF is opened.
@@ -25,6 +43,7 @@ let pdfjsPromise: Promise<typeof import("pdfjs-dist")> | null = null;
 
 function loadPdfJs(): Promise<typeof import("pdfjs-dist")> {
   if (!pdfjsPromise) {
+    ensurePromiseWithResolvers();
     pdfjsPromise = import("pdfjs-dist").then((pdfjs) => {
       pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
       return pdfjs;
