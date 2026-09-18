@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronLeft, LoaderCircle, Sparkles, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, LoaderCircle, Sparkles, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { PriorityToggle } from "@/components/priority-toggle";
@@ -137,16 +137,60 @@ const NewRole = () => {
             htmlFor="job-description"
             className="mt-5 block text-xs font-semibold uppercase tracking-widest text-muted-foreground"
           >
-            Job description
+            Job description, pasted as-is
           </label>
           <textarea
             id="job-description"
             value={jobDescription}
             onChange={(event) => setJobDescription(event.target.value)}
             rows={12}
-            placeholder="Paste the full job description here."
+            placeholder="Paste the real job description for the role, exactly as it is — including the responsibilities and the requirements."
             className="mt-3 w-full resize-y rounded-lg border bg-background px-3 py-2 text-sm leading-relaxed text-foreground placeholder:text-muted-foreground/70"
           />
+
+          <div className="mt-3 space-y-2.5 text-xs leading-relaxed text-muted-foreground">
+            <p>
+              The criteria are extracted from this wording — the more specific
+              it is, the better the criteria will be.
+            </p>
+            <p>
+              “Must have” or “required” wording tends to produce{" "}
+              <span className="font-semibold text-ink">Essential</span>{" "}
+              criteria, while “nice to have” or “bonus” wording tends to produce{" "}
+              <span className="font-semibold">Desirable</span> ones. You can
+              change any of them afterwards.
+            </p>
+          </div>
+
+          <details className="group mt-4 rounded-xl border border-line bg-surface">
+            <summary className="focus-ring flex cursor-pointer list-none items-center gap-2 rounded-xl px-4 py-3 text-xs font-semibold text-ink [&::-webkit-details-marker]:hidden">
+              <ChevronRight
+                aria-hidden
+                className="h-3.5 w-3.5 text-muted-foreground transition-transform group-open:rotate-90"
+              />
+              See a well-formed example
+            </summary>
+            <div className="border-t border-line px-4 py-3.5 text-xs leading-relaxed text-muted-foreground">
+              <p className="font-medium text-ink">
+                Senior Backend Engineer, Payments Platform
+              </p>
+              <p className="mt-2">
+                We are hiring a Senior Backend Engineer to own our payments API.
+                Responsibilities: design and run the public REST API end to end,
+                including versioning and how consumers are told about changes;
+                take the on-call lead for the payments service.
+              </p>
+              <p className="mt-2">
+                Requirements: must have five or more years building production
+                services in Go or Python; must have operated Kubernetes in
+                production.
+              </p>
+              <p className="mt-2">
+                Nice to have: experience with Terraform; a track record of
+                writing post-incident reviews.
+              </p>
+            </div>
+          </details>
 
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <Button onClick={extract} disabled={!canExtract}>
