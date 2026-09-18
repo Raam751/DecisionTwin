@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, LoaderCircle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { useRoles } from "@/state/roles-store";
@@ -24,20 +24,31 @@ const NewCandidate = () => {
 
   const [name, setName] = useState("");
   const [resume, setResume] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const lines = useMemo(() => toDocumentLines(resume), [resume]);
   const canSave = name.trim().length > 0 && lines.length > 0;
 
-  const save = () => {
-    if (!canSave) return;
-    addCandidate({
-      id: `candidate-${crypto.randomUUID().slice(0, 8)}`,
-      name: name.trim(),
-      roleId: activeRole.id,
-      documentTitle: "Resume",
-      documentLines: lines,
-    });
-    navigate("/");
+  const save = async () => {
+    if (!canSave || saving) return;
+
+    setSaving(true);
+    setSaveError(null);
+    try {
+      await addCandidate({
+        id: `candidate-${crypto.randomUUID().slice(0, 8)}`,
+        name: name.trim(),
+        roleId: activeRole.id,
+        documentTitle: "Resume",
+        documentLines: lines,
+      });
+      navigate("/");
+    } catch (cause) {
+      // Nothing was stored. Keep the form as it is so the save can be retried.
+      setSaveError((cause as Error).message);
+      setSaving(false);
+    }
   };
 
   return (
@@ -122,8 +133,15 @@ const NewCandidate = () => {
           </div>
 
           <div className="mt-6 flex flex-wrap items-center gap-3">
-            <Button onClick={save} disabled={!canSave}>
-              Save candidate
+            <Button onClick={save} disabled={!canSave || saving}>
+              {saving ? (
+                <>
+                  <LoaderCircle className="h-4 w-4 animate-spin" />
+                  Saving candidate
+                </>
+              ) : (
+                "Save candidate"
+              )}
             </Button>
             <span className="text-xs text-muted-foreground">
               {canSave
@@ -131,6 +149,17 @@ const NewCandidate = () => {
                 : "Add a name and at least one line of resume text."}
             </span>
           </div>
+
+          {saveError && (
+            <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-3">
+              <p className="text-xs font-semibold uppercase tracking-wider text-rose-800">
+                Save failed
+              </p>
+              <p className="mt-1 text-xs leading-relaxed text-rose-900">
+                {saveError}
+              </p>
+            </div>
+          )}
         </section>
       </div>
     </div>

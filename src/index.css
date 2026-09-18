@@ -1,98 +1,160 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * DecisionTwin design system.
+ *
+ * Editorial and document-led: a warm cream canvas with white cards lifted off
+ * it, restrained colour that carries meaning, and type that reads like a well
+ * made case file. Colour never carries a status on its own — every state pairs
+ * its tone with an icon and a label.
+ */
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* Canvas, surfaces and ink */
+    --canvas: 40 55% 96%;
+    --canvas-deep: 41 45% 91%;
+    --surface: 20 3% 96%;
+    --ink: 18 18% 11%;
+    --line: 23 26% 86%;
+
+    --background: 40 55% 96%;
+    --foreground: 18 18% 11%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 18 18% 11%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 18 18% 11%;
 
-    --primary: 24 95% 45%;
+    /* Brand: orange for fills, dark orange for anything that must be read */
+    --primary: 15 86% 53%;
     --primary-foreground: 0 0% 100%;
+    --brand: 15 86% 53%;
+    --brand-deep: 12 71% 42%;
+    --peach: 19 62% 96%;
+    --peach-foreground: 12 71% 42%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 36 30% 88%;
+    --secondary-foreground: 18 18% 11%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 20 3% 96%;
+    --muted-foreground: 22 10% 38%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 19 62% 96%;
+    --accent-foreground: 12 71% 42%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 358 68% 42%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 24 95% 45%;
+    --border: 23 26% 86%;
+    --input: 23 26% 86%;
+    --ring: 15 86% 53%;
 
-    --peach: 32 100% 90%;
-    --peach-foreground: 20 90% 35%;
+    --radius: 0.625rem;
 
-    --radius: 0.5rem;
+    /*
+     * Semantic states. Each has a deep tone for text and a soft tone for
+     * surface, and each is always accompanied by an icon and a label.
+     */
+    --supported: 111 31% 30%;
+    --supported-soft: 93 32% 93%;
+    --uncertain: 39 79% 34%;
+    --uncertain-soft: 40 80% 95%;
+    --conflicting: 358 68% 40%;
+    --conflicting-soft: 356 80% 96%;
+    --interview: 201 68% 34%;
+    --interview-soft: 199 90% 95%;
 
-    --sidebar-background: 0 0% 98%;
+    /* Priority */
+    --essential: 12 71% 42%;
+    --essential-soft: 19 62% 96%;
+    --desirable: 22 10% 38%;
+    --desirable-soft: 20 3% 96%;
 
-    --sidebar-foreground: 240 5.3% 26.1%;
+    /* Elevation: the cream/white contrast carries grouping, not heavy borders */
+    --shadow-card: 0 1px 2px rgb(33 26 23 / 0.06),
+      0 10px 24px -10px rgb(33 26 23 / 0.16);
+    --shadow-lift: 0 2px 6px rgb(33 26 23 / 0.08),
+      0 26px 52px -18px rgb(33 26 23 / 0.26);
+    --shadow-pop: 0 16px 40px -12px rgb(33 26 23 / 0.3);
 
-    --sidebar-primary: 240 5.9% 10%;
-
-    --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-background: 20 3% 96%;
+    --sidebar-foreground: 18 18% 11%;
+    --sidebar-primary: 15 86% 53%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 19 62% 96%;
+    --sidebar-accent-foreground: 12 71% 42%;
+    --sidebar-border: 23 26% 86%;
+    --sidebar-ring: 15 86% 53%;
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
+    --canvas: 24 14% 11%;
+    --canvas-deep: 24 12% 15%;
+    --surface: 24 12% 16%;
+    --ink: 36 30% 94%;
+    --line: 24 10% 26%;
 
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
+    --background: 24 14% 11%;
+    --foreground: 36 30% 94%;
 
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
+    --card: 24 13% 14%;
+    --card-foreground: 36 30% 94%;
 
-    --primary: 25 95% 55%;
-    --primary-foreground: 0 0% 100%;
+    --popover: 24 13% 14%;
+    --popover-foreground: 36 30% 94%;
 
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
+    --primary: 16 88% 58%;
+    --primary-foreground: 24 20% 8%;
+    --brand: 16 88% 58%;
+    --brand-deep: 22 90% 68%;
+    --peach: 20 30% 20%;
+    --peach-foreground: 24 90% 78%;
 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --secondary: 24 12% 20%;
+    --secondary-foreground: 36 30% 94%;
 
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --muted: 24 12% 18%;
+    --muted-foreground: 30 12% 68%;
 
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
+    --accent: 20 30% 20%;
+    --accent-foreground: 24 90% 78%;
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 25 95% 60%;
-    --peach: 32 100% 90%;
-    --peach-foreground: 20 90% 35%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --destructive: 358 60% 52%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 24 10% 26%;
+    --input: 24 10% 26%;
+    --ring: 16 88% 58%;
+
+    --supported: 111 40% 76%;
+    --supported-soft: 111 20% 18%;
+    --uncertain: 39 80% 72%;
+    --uncertain-soft: 39 30% 17%;
+    --conflicting: 358 80% 78%;
+    --conflicting-soft: 358 30% 19%;
+    --interview: 199 70% 74%;
+    --interview-soft: 199 30% 18%;
+
+    --essential: 24 90% 74%;
+    --essential-soft: 20 30% 20%;
+    --desirable: 30 12% 68%;
+    --desirable-soft: 24 12% 18%;
+
+    --shadow-card: 0 1px 2px rgb(0 0 0 / 0.4), 0 10px 24px -12px rgb(0 0 0 / 0.6);
+    --shadow-lift: 0 2px 6px rgb(0 0 0 / 0.45), 0 24px 48px -18px rgb(0 0 0 / 0.7);
+    --shadow-pop: 0 16px 36px -12px rgb(0 0 0 / 0.7);
+
+    --sidebar-background: 24 12% 14%;
+    --sidebar-foreground: 36 30% 94%;
+    --sidebar-primary: 16 88% 58%;
+    --sidebar-primary-foreground: 24 20% 8%;
+    --sidebar-accent: 20 30% 20%;
+    --sidebar-accent-foreground: 24 90% 78%;
+    --sidebar-border: 24 10% 26%;
+    --sidebar-ring: 16 88% 58%;
   }
 }
 
@@ -101,8 +163,121 @@
     @apply border-border;
   }
 
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    scroll-behavior: smooth;
+  }
+
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background font-sans text-foreground antialiased;
+  }
+
+  /* Digits line up in tables, line numbers and coverage counts. */
+  .tnum,
+  table {
+    font-variant-numeric: tabular-nums;
+  }
+
+  ::selection {
+    background: hsl(var(--peach));
+    color: hsl(var(--brand-deep));
+  }
+
+  /* One visible focus treatment for the whole product. */
+  :focus-visible {
+    outline: 2px solid hsl(var(--brand-deep));
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer components {
+  /* Section label: small, wide-tracked, always above a block of content. */
+  .eyebrow {
+    @apply text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground;
+  }
+
+  /* The single card surface, lifted off the cream canvas. */
+  .card-surface {
+    @apply rounded-2xl border border-line bg-card text-card-foreground shadow-card;
+  }
+
+  /* Quieter surface for content nested inside a card. */
+  .card-inset {
+    @apply rounded-xl border border-line bg-surface;
+  }
+
+  .focus-ring {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-deep/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background;
+  }
+
+  /* Exhibit type: the source document and machine-recorded values. */
+  .exhibit {
+    @apply font-mono text-[13px] leading-6;
+  }
+}
+
+@layer utilities {
+  /* The citation moment: the cited lines flash so the eye lands on them. */
+  .cite-flash {
+    animation: cite-flash 900ms ease-out;
+  }
+
+  .rise-in {
+    animation: rise-in 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .pop-in {
+    animation: pop-in 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+}
+
+@keyframes cite-flash {
+  0% {
+    background-color: hsl(var(--peach));
+  }
+  45% {
+    background-color: hsl(39 79% 55% / 0.42);
+  }
+  100% {
+    background-color: hsl(var(--peach));
+  }
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97) translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
   }
 }
 

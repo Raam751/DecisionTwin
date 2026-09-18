@@ -1,0 +1,34 @@
+create table public.roles (
+  id text primary key,
+  workspace_id text not null,
+  title text not null,
+  job_description text not null,
+  criteria jsonb not null,
+  created_at timestamptz not null default now()
+);
+
+create index roles_workspace_id_idx on public.roles (workspace_id);
+
+alter table public.roles enable row level security;
+create policy "roles readable by all" on public.roles for select using (true);
+
+create table public.candidates (
+  id text primary key,
+  workspace_id text not null,
+  role_id text not null,
+  name text not null,
+  document_title text not null,
+  document_lines jsonb not null,
+  created_at timestamptz not null default now()
+);
+
+create index candidates_workspace_id_idx on public.candidates (workspace_id);
+
+alter table public.candidates enable row level security;
+create policy "candidates readable by all" on public.candidates for select using (true);
+
+alter table public.evidence_records add column workspace_id text;
+
+drop index public.evidence_records_candidate_role_idx;
+
+create unique index evidence_records_workspace_candidate_role_idx on public.evidence_records (workspace_id, candidate_id, role_id);

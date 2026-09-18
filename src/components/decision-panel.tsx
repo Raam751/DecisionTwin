@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { CheckCircle2, UserRound } from "lucide-react";
+import { CheckCircle2, Gavel, UserRound } from "lucide-react";
 
+import { Button } from "@/components/ui/button";
 import { REVIEWERS } from "@/hooks/use-evidence-record";
 import { cn } from "@/lib/utils";
 import type { HumanDecision } from "@/types";
@@ -10,6 +11,8 @@ const DISPOSITIONS = [
   "Hold for verification",
   "Decline",
 ];
+
+const MIN_REASON = 10;
 
 interface DecisionPanelProps {
   decision: HumanDecision | null;
@@ -24,6 +27,7 @@ const formatWhen = (iso: string) =>
   new Date(iso).toLocaleString(undefined, {
     day: "numeric",
     month: "short",
+    year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
   });
@@ -39,60 +43,72 @@ export function DecisionPanel({
   const [disposition, setDisposition] = useState<string | null>(null);
   const [reason, setReason] = useState("");
 
-  const canSave = !!disposition && reason.trim().length >= 10;
+  const reasonLength = reason.trim().length;
+  const canSave = !!disposition && reasonLength >= MIN_REASON;
 
   if (decision) {
     return (
-      <div className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-5">
-        <div className="flex items-center gap-2">
-          <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-700" />
-          <p className="text-xs font-semibold uppercase tracking-wider text-emerald-800">
+      <div className="card-surface overflow-hidden border-supported/30">
+        <div className="flex items-center gap-2.5 border-b border-line bg-supported-soft px-5 py-3.5">
+          <CheckCircle2 aria-hidden className="h-4 w-4 shrink-0 text-supported" />
+          <p className="eyebrow text-supported">
             Decision recorded by a human reviewer
           </p>
         </div>
-        <p className="mt-3 text-xl font-bold leading-tight">
-          {decision.disposition}
-        </p>
-        <p className="mt-2 text-sm leading-relaxed text-foreground/80">
-          {decision.reason}
-        </p>
-        <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
-          <span className="inline-flex items-center gap-1.5">
-            <UserRound className="h-3.5 w-3.5" />
-            {decision.reviewerName}
-          </span>
-          <span>{formatWhen(decision.timestamp)}</span>
+
+        <div className="p-5 md:p-6">
+          <p className="font-serif text-2xl font-semibold leading-tight tracking-tight text-ink md:text-[28px]">
+            {decision.disposition}
+          </p>
+          <p className="mt-3 text-sm leading-relaxed text-ink/85">
+            {decision.reason}
+          </p>
+
+          <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-line pt-4 text-xs text-muted-foreground">
+            <span className="inline-flex items-center gap-1.5 font-medium">
+              <UserRound aria-hidden className="h-3.5 w-3.5" />
+              {decision.reviewerName}
+            </span>
+            <span className="font-mono text-2xs">
+              {formatWhen(decision.timestamp)}
+            </span>
+          </div>
+
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="mt-5"
+            onClick={() => {
+              setDisposition(null);
+              setReason("");
+              onClear();
+            }}
+          >
+            Change decision
+          </Button>
         </div>
-        <button
-          type="button"
-          onClick={() => {
-            setDisposition(null);
-            setReason("");
-            onClear();
-          }}
-          className="mt-4 text-sm font-medium text-primary hover:underline"
-        >
-          Change decision
-        </button>
       </div>
     );
   }
 
   return (
-    <div className="rounded-2xl border bg-card p-5">
-      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-        Human decision
-      </p>
-      <p className="mt-2 text-sm text-muted-foreground">
-        The model drafts evidence. A named reviewer makes the call and owns it.
+    <div className="card-surface p-5 md:p-6">
+      <div className="flex items-center gap-2.5">
+        <Gavel aria-hidden className="h-4 w-4 shrink-0 text-muted-foreground" />
+        <p className="eyebrow">Human decision</p>
+      </div>
+      <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+        The model drafts evidence. A named reviewer makes the call, and owns it
+        afterwards.
       </p>
 
-      <label className="mt-4 block text-xs font-medium text-muted-foreground">
+      <label className="mt-5 block text-xs font-semibold text-ink">
         Reviewer
         <select
           value={reviewer}
-          onChange={(e) => onReviewerChange(e.target.value)}
-          className="mt-1 w-full rounded-lg border bg-background px-3 py-2 text-sm text-foreground"
+          onChange={(event) => onReviewerChange(event.target.value)}
+          className="focus-ring mt-1.5 w-full rounded-xl border border-line bg-card px-3 py-2.5 text-sm font-normal text-ink"
         >
           {REVIEWERS.map((name) => (
             <option key={name} value={name}>
@@ -102,63 +118,75 @@ export function DecisionPanel({
         </select>
       </label>
 
-      <div className="mt-4 flex flex-wrap gap-2">
-        {DISPOSITIONS.map((option) => (
-          <button
-            key={option}
-            type="button"
-            onClick={() => setDisposition(option)}
-            className={cn(
-              "rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
-              disposition === option
-                ? "border-primary bg-primary text-primary-foreground"
-                : "border-border bg-background hover:border-primary/40",
-            )}
-          >
-            {option}
-          </button>
-        ))}
-      </div>
+      <fieldset className="mt-5">
+        <legend className="text-xs font-semibold text-ink">Disposition</legend>
+        <div className="mt-2 grid gap-2 sm:grid-cols-3">
+          {DISPOSITIONS.map((option) => {
+            const selected = disposition === option;
+            return (
+              <button
+                key={option}
+                type="button"
+                aria-pressed={selected}
+                onClick={() => setDisposition(option)}
+                className={cn(
+                  "focus-ring rounded-xl border px-3 py-3 text-left text-xs font-semibold leading-snug transition-all duration-200",
+                  selected
+                    ? "border-brand bg-peach text-peach-foreground shadow-card"
+                    : "border-line bg-card text-ink hover:border-brand/40 hover:bg-surface",
+                )}
+              >
+                {option}
+              </button>
+            );
+          })}
+        </div>
+      </fieldset>
 
       {unresolvedCount > 0 && (
-        <p className="mt-3 text-xs text-amber-700">
-          {unresolvedCount} {unresolvedCount === 1 ? "criterion" : "criteria"}{" "}
+        <p className="mt-4 rounded-xl border border-uncertain/25 bg-uncertain-soft px-3.5 py-3 text-xs leading-relaxed text-ink">
+          {unresolvedCount} {unresolvedCount === 1 ? "criterion is" : "criteria are"}{" "}
           still unresolved. Say how you handled that in your reason.
         </p>
       )}
 
-      <label className="mt-4 block text-xs font-medium text-muted-foreground">
+      <label className="mt-5 block text-xs font-semibold text-ink">
         Reason (required)
         <textarea
           value={reason}
-          onChange={(e) => setReason(e.target.value)}
+          onChange={(event) => setReason(event.target.value)}
           rows={3}
           placeholder="Why this decision, given the cited evidence and what is still unknown."
-          className="mt-1 w-full resize-none rounded-lg border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/70"
+          className="focus-ring mt-1.5 w-full resize-none rounded-xl border border-line bg-card px-3 py-2.5 text-sm font-normal leading-relaxed text-ink placeholder:text-muted-foreground/70"
         />
       </label>
 
-      <button
-        type="button"
-        disabled={!canSave}
-        onClick={() => {
-          if (!disposition) return;
-          onSave(disposition, reason.trim());
-        }}
-        className={cn(
-          "mt-3 w-full rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors",
-          canSave
-            ? "bg-primary text-primary-foreground hover:opacity-90"
-            : "cursor-not-allowed bg-muted text-muted-foreground",
-        )}
-      >
-        Save decision
-      </button>
-      {!canSave && (
-        <p className="mt-2 text-xs text-muted-foreground">
-          Pick a disposition and write at least a short reason.
+      <div className="mt-5">
+        <Button
+          type="button"
+          disabled={!canSave}
+          onClick={() => {
+            if (!disposition) return;
+            onSave(disposition, reason.trim());
+          }}
+        >
+          Save decision
+        </Button>
+        <p
+          className={cn(
+            "mt-2.5 font-mono text-2xs",
+            canSave ? "text-muted-foreground" : "text-uncertain",
+          )}
+        >
+          {!disposition
+            ? "pick a disposition, then write at least 10 characters"
+            : reasonLength === 0
+              ? "the reason is required: at least 10 characters"
+              : canSave
+                ? "ready to record"
+                : `${reasonLength} of 10 characters`}
         </p>
-      )}
+      </div>
     </div>
   );
 }

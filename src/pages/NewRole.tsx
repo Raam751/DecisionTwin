@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronLeft, LoaderCircle, Sparkles, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, LoaderCircle, Sparkles, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { PriorityToggle } from "@/components/priority-toggle";
@@ -34,7 +34,9 @@ const NewRole = () => {
   const [title, setTitle] = useState("");
   const [criteria, setCriteria] = useState<RoleCriterion[] | null>(null);
   const [extracting, setExtracting] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const canExtract = jobDescription.trim().length > 0 && !extracting;
   const canSave = !!criteria && criteria.length >= 2;
@@ -69,8 +71,11 @@ const NewRole = () => {
     );
   };
 
-  const save = () => {
-    if (!criteria || criteria.length < 2) return;
+  const save = async () => {
+    if (!criteria || criteria.length < 2 || saving) return;
+
+    setSaving(true);
+    setSaveError(null);
 
     // The id is internal, so it is rebuilt from the final label and kept unique.
     const used = new Set<string>();
@@ -89,14 +94,19 @@ const NewRole = () => {
       };
     });
 
-    addRole({
-      id: `role-${crypto.randomUUID().slice(0, 8)}`,
-      title: title.trim() || deriveTitle(jobDescription),
-      jobDescription: jobDescription.trim(),
-      criteria: shaped,
-    });
-
-    navigate("/");
+    try {
+      await addRole({
+        id: `role-${crypto.randomUUID().slice(0, 8)}`,
+        title: title.trim() || deriveTitle(jobDescription),
+        jobDescription: jobDescription.trim(),
+        criteria: shaped,
+      });
+      navigate("/");
+    } catch (cause) {
+      // Nothing was stored. Keep the form as it is so the save can be retried.
+      setSaveError((cause as Error).message);
+      setSaving(false);
+    }
   };
 
   return (
@@ -137,16 +147,60 @@ const NewRole = () => {
             htmlFor="job-description"
             className="mt-5 block text-xs font-semibold uppercase tracking-widest text-muted-foreground"
           >
-            Job description
+            Job description, pasted as-is
           </label>
           <textarea
             id="job-description"
             value={jobDescription}
             onChange={(event) => setJobDescription(event.target.value)}
             rows={12}
-            placeholder="Paste the full job description here."
+            placeholder="Paste the real job description for the role, exactly as it is — including the responsibilities and the requirements."
             className="mt-3 w-full resize-y rounded-lg border bg-background px-3 py-2 text-sm leading-relaxed text-foreground placeholder:text-muted-foreground/70"
           />
+
+          <div className="mt-3 space-y-2.5 text-xs leading-relaxed text-muted-foreground">
+            <p>
+              The criteria are extracted from this wording — the more specific
+              it is, the better the criteria will be.
+            </p>
+            <p>
+              “Must have” or “required” wording tends to produce{" "}
+              <span className="font-semibold text-ink">Essential</span>{" "}
+              criteria, while “nice to have” or “bonus” wording tends to produce{" "}
+              <span className="font-semibold">Desirable</span> ones. You can
+              change any of them afterwards.
+            </p>
+          </div>
+
+          <details className="group mt-4 rounded-xl border border-line bg-surface">
+            <summary className="focus-ring flex cursor-pointer list-none items-center gap-2 rounded-xl px-4 py-3 text-xs font-semibold text-ink [&::-webkit-details-marker]:hidden">
+              <ChevronRight
+                aria-hidden
+                className="h-3.5 w-3.5 text-muted-foreground transition-transform group-open:rotate-90"
+              />
+              See a well-formed example
+            </summary>
+            <div className="border-t border-line px-4 py-3.5 text-xs leading-relaxed text-muted-foreground">
+              <p className="font-medium text-ink">
+                Senior Backend Engineer, Payments Platform
+              </p>
+              <p className="mt-2">
+                We are hiring a Senior Backend Engineer to own our payments API.
+                Responsibilities: design and run the public REST API end to end,
+                including versioning and how consumers are told about changes;
+                take the on-call lead for the payments service.
+              </p>
+              <p className="mt-2">
+                Requirements: must have five or more years building production
+                services in Go or Python; must have operated Kubernetes in
+                production.
+              </p>
+              <p className="mt-2">
+                Nice to have: experience with Terraform; a track record of
+                writing post-incident reviews.
+              </p>
+            </div>
+          </details>
 
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <Button onClick={extract} disabled={!canExtract}>
@@ -246,8 +300,15 @@ const NewRole = () => {
             </p>
 
             <div className="mt-6 flex flex-wrap items-center gap-3">
-              <Button onClick={save} disabled={!canSave}>
-                Save role
+              <Button onClick={save} disabled={!canSave || saving}>
+                {saving ? (
+                  <>
+                    <LoaderCircle className="h-4 w-4 animate-spin" />
+                    Saving role
+                  </>
+                ) : (
+                  "Save role"
+                )}
               </Button>
               <span
                 className={cn(
@@ -260,6 +321,17 @@ const NewRole = () => {
                   : "At least two criteria are required to continue."}
               </span>
             </div>
+
+            {saveError && (
+              <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-3">
+                <p className="text-xs font-semibold uppercase tracking-wider text-rose-800">
+                  Save failed
+                </p>
+                <p className="mt-1 text-xs leading-relaxed text-rose-900">
+                  {saveError}
+                </p>
+              </div>
+            )}
           </section>
         )}
       </div>

@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { getWorkspaceId } from "@/lib/workspace";
 import type {
   Candidate,
   EvidenceItem,
@@ -14,18 +15,19 @@ import type {
  * The generated Database type predates the evidence_records table, so the table
  * is reached through a narrow structural type rather than a blanket any cast.
  */
+type SelectResult = {
+  maybeSingle: () => Promise<{
+    data: unknown;
+    error: { message: string } | null;
+  }>;
+};
+
+type Filter = SelectResult & {
+  eq: (column: string, value: string) => Filter;
+};
+
 type MinimalTable = {
-  select: (columns: string) => {
-    eq: (
-      column: string,
-      value: string,
-    ) => {
-      maybeSingle: () => Promise<{
-        data: unknown;
-        error: { message: string } | null;
-      }>;
-    };
-  };
+  select: (columns: string) => Filter;
 };
 
 const table = (name: string): MinimalTable =>
@@ -45,6 +47,10 @@ interface StoredRow {
 /**
  * Loads a previously generated record from the database.
  *
+ * Only this workspace's record is considered: the same seeded candidate id
+ * exists in every browser, and its record row is scoped by workspace_id, so
+ * one browser can never pick up another's evidence.
+ *
  * Returns null when nothing is stored, or when the table cannot be reached, so
  * the caller can fall back to the seeded example. A read failure must never
  * break the page.
@@ -56,6 +62,7 @@ export async function fetchStoredRecord(
     const { data, error } = await table("evidence_records")
       .select("*")
       .eq("candidate_id", candidateId)
+      .eq("workspace_id", getWorkspaceId())
       .maybeSingle();
 
     if (error || !data) return null;
@@ -101,6 +108,7 @@ export async function generateEvidence(
       roleId: role.id,
       criteria: role.criteria,
       documentLines: candidate.documentLines,
+      workspaceId: getWorkspaceId(),
     },
   });
 
