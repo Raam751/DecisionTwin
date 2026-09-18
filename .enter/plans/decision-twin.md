@@ -1,44 +1,75 @@
-# Decisions screen for the active role
+# Hiring stages, Stage 1: data model, persistence, review screen
 
 ## Context
-Add a `/decisions` view that groups every candidate in the active role by the human decision recorded on their evidence record. This page is a factual record of decisions humans made, never a shortlist, ranking, or tool-produced selection. It reuses the existing `useRoleRecords` hook and existing dispositions, adds no backend work, and appears in the main navigation.
+Candidates currently have one record per role with no notion of rounds. Stage 1 adds a fixed, non-editable stage list (Screening, Round 1, Round 2, Final), lets each candidate sit in one current stage (default Screening), records one decision per stage plus history, and captures interview answers per stage without overwriting the document evidence or earlier rounds. All new fields are optional so nothing existing breaks, and `humanDecision` stays the most recent decision, kept in sync with the last `decisions` entry.
 
-Branch state: the current branch is already `main` and includes everything from `github/main` unchanged. Git mutations (pull, reset, merge) are framework-managed and rejected here, so no reset is performed and nothing on main that I did not write is reverted.
+Branch state: current branch is already `main` and includes `github/main` unchanged. Git mutations are framework-managed and rejected here; no reset is performed and nothing on main that I did not write is reverted.
 
-## Approach
+After Stage 1 implementation I will stop and report before doing Stage 2.
 
-### New page `src/pages/Decisions.tsx`
-- Read `activeRole` and `activeCandidates` from `useRoles`; load records with the existing `useRoleRecords(activeCandidates)`.
-- Group candidates by their record's `humanDecision.disposition`, in candidate insertion order within each group. Groups are the three existing dispositions plus `No decision recorded` for candidates with no record or a record without `humanDecision`. An unknown stored disposition (defensive) gets its own group appended after the four, so a real decision is never hidden or mislabelled.
-- Header: title `Decisions`, role name, and a fixed framing line making explicit that these are human decisions, each with a named reviewer and a recorded reason, and that the tool did not select anyone.
-- One section per group with a count and an empty state when the group has no candidates (muted box, no ranking language).
-- Each entry shows candidate name, reviewer, the written reason, when it was recorded (same `toLocaleString` format as the decision panel), a coverage line (e.g. "N of M essential criteria covered by cited evidence", from the record, facts only), and a link to that candidate's review screen. The `No decision recorded` entries show an explanatory line and a link to the review screen where the decision can be recorded.
-- No model call, no new backend function, no new table, no scores, percentages, stars, medals, or ordering by quality.
+## Changes
 
-### Navigation and route
-- Add `Decisions` (`/decisions`, `Scale` icon) to `src/components/main-nav.tsx` alongside Candidates and Roles.
-- Add the `/decisions` route in `src/router.tsx` wrapped in `AppShell`, before the catch-all.
+### Types `src/types.ts`
+- `EvidenceItem`: add `stage?: string` (set only on interview-sourced items).
+- `ReviewerEdit`: add `stage?: string`.
+- Add `export interface StageDecision extends HumanDecision { stage: string }`.
+- `EvidenceRecord`: add `currentStage?: string` and `decisions?: StageDecision[]`.
+- Missing `currentStage` means Screening; missing `decisions` means `[]`. `src/data/seed.ts` untouched.
 
-### Reused patterns
-- `useRoleRecords`, `EvidenceRecord.humanDecision` (`disposition`, `reviewerName`, `reason`, `timestamp`), the three dispositions from `decision-panel.tsx`, the `toLocaleString` timestamp format, the app shell/page heading, card and eyebrow styles, and the status/canvas colour tokens. No new dependencies.
+### Shared constants `src/lib/stages.ts`
+- `STAGES = ["Screening", "Round 1", "Round 2", "Final"]`.
+- Helpers: `currentStageOf(record)` (default Screening), `nextStage(current)` (null when none).
+
+### Migration (evidence_records)
+- Add `current_stage text` and `decisions jsonb not null default '[]'::jsonb`. Additive and tolerant of existing rows. No new RLS policy (writes stay service-role only). This is compatible same-business maintenance of the established evidence_records table.
+
+### save-review `supabase/functions/save-review/index.ts`
+- Accept `currentStage` and `decisions`; keep requiring `workspaceId` and keep scoping the select and update by `workspace_id`.
+- Evidence merge key becomes `criterionId + "|" + (recordedAtInterview ? "interview:" + (stage ?? "") : "document")` so there is exactly one document item per criterion and one interview item per criterion per stage.
+- Re-verify invariants: document citation fields always from the stored record; interview items always forced to `citationVerified false`, lines 0, no `stage` lost; an item with no stored counterpart forced to `citationVerified false`.
+- Persist `current_stage` and `decisions`.
+- When the stored `current_stage` differs from the incoming one, append one `reviewer_events` row with `event_type "decision"`, `field "currentStage"`, previous and new stage, reason from the latest decision, reviewer from the latest decision. Confirm the events CHECK allows "decision".
+
+### Client services
+- `src/services/evidence-api.ts`: read `current_stage` and `decisions` in `fetchStoredRecord` and map them into the returned record.
+- `src/services/review-api.ts`: send `currentStage` and `decisions` in the save-review body.
+
+### Hook `src/hooks/use-evidence-record.ts`
+- `saveDecision`: build a `StageDecision` with the current stage; replace any same-stage entry, append at the end, and set `humanDecision` to it (last entry stays in sync).
+- `clearDecision`: set `humanDecision` null and remove the matching last `decisions` entry.
+- `recordInterviewAnswer`: append/replace the interview item for `(criterion, currentStage)` only; never replace the document item or other stages' answers; tag the item and its reviewer edit with the stage.
+- `advanceStage`: return an updated record with the next `currentStage`, allowed only when the current stage has a decision of `Advance to interview` and a later stage exists; never alters evidence.
+- `overrideStatus`: unchanged behavior, but tags the edit with the current stage.
+
+### Review screen `src/pages/Review.tsx` and small components
+- Show the current stage prominently in the candidate header.
+- Per criterion: keep the document item visible; render interview answers one per stage, newest first, each labelled with stage, reviewer and date; recording an answer no longer replaces the document item or other rounds.
+- `InterviewAnswerControl` gains a stage label ("Asked at interview · {stage}").
+- `DecisionPanel` gains a stage label; the page records the decision for the current stage.
+- Below the panel, show previous stages' decisions as history (stage, disposition, reviewer, reason, date).
+- "Advance to next stage" action, enabled only when the current stage has an `Advance to interview` decision and a later stage exists; advancing does not clear or alter evidence.
+- `?criterion=` deep link, reason minimums, no Verified mark on interview evidence: unchanged.
 
 ### Protected and unchanged
-`scripts/`, `src/data/seed.ts`, `src/types.ts`, and `supabase/functions/` are untouched. Reason minimums, citation verification, deep links, and workspace scoping are untouched.
+`scripts/`, `src/data/seed.ts`, `generate-evidence`, `save-workspace`, `generate-criteria`, `condense-resume`, `extract-candidate-name`, and generated integrations are untouched. No model call on load or mount.
 
 ### Copy rule
 No em dashes or en dashes in code, copy, comments, or placeholders.
 
 ## Implementation checklist
-- [x] Create `src/pages/Decisions.tsx` grouping by disposition with counts, entries, empty states, framing line, and review links.
-- [x] Add `Decisions` to `src/components/main-nav.tsx` with a `Scale` icon.
-- [x] Add the `/decisions` route to `src/router.tsx` inside `AppShell`.
-- [x] Confirm no em/en dashes in the new page and navigation.
-- [x] Keep protected files untouched.
+- [ ] Add the optional stage types to `src/types.ts`.
+- [ ] Create `src/lib/stages.ts` with the fixed stage list and helpers.
+- [ ] Run the additive migration on `evidence_records`.
+- [ ] Update `save-review` for stage fields, the composite evidence key, and the stage-advance event; redeploy.
+- [ ] Update `evidence-api.ts` and `review-api.ts` for `currentStage` and `decisions`.
+- [ ] Update the `useEvidenceRecord` hook: staged decisions, per-stage interview answers, and `advanceStage`.
+- [ ] Update the review screen: current stage, per-stage interview answers, decision history, advance action; label updates in `InterviewAnswerControl` and `DecisionPanel`.
+- [ ] Confirm no em/en dashes in changed copy and code.
 
 ## Verification checklist
-- [x] Run `pnpm lint`, `pnpm exec tsc --noEmit`, `pnpm run build`, and `pnpm run build:prod --manifest`.
-- [x] Browser-verify `/decisions`: all four groups render with counts; candidates appear in insertion order inside each group; entries show name, reviewer, reason, recorded time, coverage line, and review link; empty groups show an empty state; the framing line is present.
-- [x] Verify the navigation shows Candidates, Roles, and Decisions, and each link routes correctly.
-- [x] Verify the page loads records without any model call and without writes.
-- [x] Confirm no ranking, score, or selection marks anywhere in the rendered page.
-- [x] State clearly which items were verified by execution and which only by reading code.
+- [ ] Run `pnpm lint`, `pnpm exec tsc --noEmit`, `pnpm run build`, `pnpm run build:prod --manifest`, and `node scripts/verify-citations.mjs` (must report 15 passed, 0 failures).
+- [ ] Confirm the migration applied and the columns tolerate existing rows; confirm the events CHECK allows "decision".
+- [ ] Browser-verify the review screen with intercepted stored records: current stage shown; a document item stays beside one interview answer per stage, newest first, labelled; recording an answer in Round 2 keeps the Round 1 answer; decisions history shows prior stages; advance is disabled without an `Advance to interview` decision for the current stage and enabled after it; advancing changes the stage without touching evidence; no model call on load.
+- [ ] Confirm `humanDecision` stays the last `decisions` entry after save and clear.
+- [ ] Confirm no `save-workspace`/record writes happened as a test, and no page errors.
+- [ ] State clearly which items were verified by execution and which only by reading code.
