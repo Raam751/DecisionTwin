@@ -6,9 +6,9 @@
  * before returning or storing anything.
  *
  * Required secrets:
- *   MODEL_API_URL   OpenAI-compatible chat completions endpoint
+ *   MODEL_API_URL   Anthropic Messages API endpoint
  *   MODEL_API_KEY   credential for that endpoint
- *   MODEL_NAME      model identifier
+ *   MODEL_NAME      model identifier (Anthropic Messages protocol)
  * Provided automatically by Supabase:
  *   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
  *
@@ -218,19 +218,16 @@ async function callModel(prompt: string): Promise<unknown> {
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${key}`,
+      "X-Enter-Project-ID": "258d79bdfe7640768e659cd9b20b75ed",
+      "X-Session-ID": crypto.randomUUID(),
     },
     body: JSON.stringify({
       model,
       temperature: 0,
-      response_format: { type: "json_object" },
-      messages: [
-        {
-          role: "system",
-          content:
-            "You return only valid JSON. You never invent evidence that is not in the source document.",
-        },
-        { role: "user", content: prompt },
-      ],
+      max_tokens: 4096,
+      system:
+        "You return only valid JSON. You never invent evidence that is not in the source document.",
+      messages: [{ role: "user", content: prompt }],
     }),
   });
 
@@ -239,8 +236,17 @@ async function callModel(prompt: string): Promise<unknown> {
   }
 
   const payload = await response.json();
-  const content = payload?.choices?.[0]?.message?.content;
-  if (typeof content !== "string") throw new Error("unexpected model response");
+  const content = Array.isArray(payload?.content)
+    ? payload.content
+        .filter(
+          (block: { type?: string; text?: string }) => block.type === "text",
+        )
+        .map((block: { text?: string }) => block.text ?? "")
+        .join("")
+    : null;
+  if (typeof content !== "string" || content.length === 0) {
+    throw new Error("unexpected model response");
+  }
   return extractJson(content);
 }
 
