@@ -1,5 +1,0 @@
--- Removes the disposable record created to verify the redeployed save-review
--- merge semantics ('evidence-selftest-merge', candidate 'selftest-candidate').
--- It belongs to no candidate in the app and its single audit event cascades
--- away. The seeded evidence-candidate-a/b/c records are untouched.
-delete from public.evidence_records where id = 'evidence-selftest-merge' and candidate_id = 'selftest-candidate';

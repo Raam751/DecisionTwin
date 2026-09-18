@@ -1,11 +1,17 @@
 import { supabase } from "@/integrations/supabase/client";
-import type { EvidenceRecord } from "@/types";
+import type { EvidenceItem, EvidenceRecord } from "@/types";
 
 export interface SaveReviewResult {
   /** How many new audit events were appended for this save. */
   events: number;
   /** Set when the review was saved but the audit append failed. */
   auditWarning?: string;
+  /**
+   * The evidence as it now stands in the store. The function takes every
+   * citation field from the stored record and ignores whatever the request
+   * sent, so this is the authoritative version and the caller should adopt it.
+   */
+  evidence?: EvidenceItem[];
 }
 
 /**
@@ -49,7 +55,13 @@ export async function saveReview(
   if (error) throw new Error(await readErrorMessage(error));
 
   const result = data as
-    | { saved?: boolean; events?: number; error?: string; auditWarning?: string }
+    | {
+        saved?: boolean;
+        events?: number;
+        error?: string;
+        auditWarning?: string;
+        evidence?: unknown;
+      }
     | null;
 
   if (!result?.saved) {
@@ -59,5 +71,8 @@ export async function saveReview(
   return {
     events: result.events ?? 0,
     auditWarning: result.auditWarning,
+    evidence: Array.isArray(result.evidence)
+      ? (result.evidence as EvidenceItem[])
+      : undefined,
   };
 }

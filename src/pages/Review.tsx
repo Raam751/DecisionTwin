@@ -114,6 +114,11 @@ const Review = () => {
     setSaveMessage(null);
     try {
       const result = await saveReview(next);
+      // The store is authoritative on citations, so adopt what it returned
+      // rather than keeping a local view it disagrees with.
+      if (result.evidence) {
+        replaceRecord({ ...next, evidence: result.evidence });
+      }
       setSaveState("saved");
       setSaveMessage(
         result.auditWarning ??
@@ -127,7 +132,7 @@ const Review = () => {
       setSaveState("error");
       setSaveMessage((error as Error).message);
     }
-  }, []);
+  }, [replaceRecord]);
 
   const retrySave = useCallback(() => {
     if (record) void persist(record);
