@@ -120,7 +120,17 @@ const Decisions = () => {
     const order: string[] = [];
 
     for (const candidate of activeCandidates) {
-      const decision = records[candidate.id]?.humanDecision ?? null;
+      // Group by the most recent decision actually recorded against a stage.
+      // humanDecision alone is not enough: a reviewer who reopens the current
+      // stage's call clears it, and that must not drop the candidate out of the
+      // group their last real decision put them in.
+      const stored = records[candidate.id] ?? null;
+      const stageDecisions = stored?.decisions ?? [];
+      const latestStageDecision =
+        stageDecisions.length > 0
+          ? stageDecisions[stageDecisions.length - 1]
+          : null;
+      const decision = latestStageDecision ?? stored?.humanDecision ?? null;
       const key =
         decision?.disposition && decision.reviewerName && decision.reason
           ? decision.disposition
@@ -197,7 +207,9 @@ const Decisions = () => {
                 <ol className="mt-3 space-y-3">
                   {candidates.map((candidate) => {
                     const decision =
-                      records[candidate.id]?.humanDecision ?? null;
+                      (records[candidate.id]?.decisions ?? []).slice(-1)[0] ??
+                      records[candidate.id]?.humanDecision ??
+                      null;
                     const coverage = coverageLine(
                       activeRole.criteria,
                       records[candidate.id]?.evidence ?? [],

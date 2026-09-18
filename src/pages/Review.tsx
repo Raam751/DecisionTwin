@@ -39,8 +39,15 @@ import type {
 
 interface CriterionRow {
   criterion: RoleCriterion;
-  /** The document-sourced item, or the newest interview item when no document item exists. */
+  /**
+   * What the row reports: the current stage's interview answer when one exists,
+   * otherwise the document-sourced item, otherwise the newest interview answer.
+   */
   item?: EvidenceItem;
+  /** The document-sourced item, which an override acts on. */
+  documentItem?: EvidenceItem;
+  /** The answer recorded in the current stage, when there is one. */
+  stageAnswer?: EvidenceItem;
   interviewQuestion?: string;
   /** Every interview answer for this criterion, newest first. */
   interviewItems: EvidenceItem[];
@@ -121,6 +128,9 @@ const Review = () => {
   const [activeCriterionId, setActiveCriterionId] = useState<string | null>(
     requestedCriterionId,
   );
+  // Criteria whose answer form the reviewer deliberately reopened, so a second
+  // answer can be recorded in the same stage.
+  const [reopened, setReopened] = useState<Record<string, boolean>>({});
   const [generating, setGenerating] = useState(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
   const [rejectedCitations, setRejectedCitations] = useState<string[]>([]);
@@ -234,9 +244,19 @@ const Review = () => {
             new Date(a.recordedAt ?? 0).getTime(),
         );
       const documentItem = criterionItems.find((e) => !e.recordedAtInterview);
+      const stage = record ? currentStageOf(record) : STAGES[0];
+      const stageAnswer = interviewItems.find(
+        (e) => (e.stage ?? STAGES[0]) === stage,
+      );
       return {
         criterion,
-        item: documentItem ?? interviewItems[0],
+        // An answer recorded in the current stage is the newest thing known
+        // about this criterion, so it drives the row's status. Without this the
+        // row keeps reporting the document item's "uncertain" forever and the
+        // answer form reappears as though nothing had been recorded.
+        item: stageAnswer ?? documentItem ?? interviewItems[0],
+        documentItem,
+        stageAnswer,
         interviewItems,
         interviewQuestion: record.interviewQuestions.find(
           (q) => q.criterionId === criterion.id,
@@ -261,19 +281,21 @@ const Review = () => {
     nextStageName !== null;
 
   // Decisions from earlier stages, in stage order, shown as history. The most
-  // recent decision lives in the panel above via humanDecision.
+  // recent decision lives in the panel above via the current stage's decision.
   const decisionHistory: StageDecision[] = useMemo(() => {
     if (!record) return [];
-    const newestTimestamp = record.humanDecision?.timestamp ?? null;
+    // Everything except the current stage, which the panel itself owns. Keying
+    // on the stage rather than a timestamp means an earlier stage's decision is
+    // never hidden just because it happens to be the newest one recorded.
     const history = (record.decisions ?? []).filter(
-      (decision) => decision.timestamp !== newestTimestamp,
+      (decision) => decision.stage !== currentStage,
     );
     return [...history].sort(
       (a, b) =>
         STAGES.indexOf(a.stage as (typeof STAGES)[number]) -
         STAGES.indexOf(b.stage as (typeof STAGES)[number]),
     );
-  }, [record]);
+  }, [record, currentStage]);
 
   const activeItem = record?.evidence.find(
     (e) => e.criterionId === activeCriterionId && e.sourceStartLine > 0,
@@ -497,6 +519,8 @@ const Review = () => {
                   ({
                     criterion,
                     item,
+                    documentItem,
+                    stageAnswer,
                     interviewQuestion,
                     interviewItems,
                   }) => {
@@ -648,13 +672,43 @@ const Review = () => {
                             </div>
                           )}
 
-                          {(isUncertain || isConflicting) &&
-                            interviewQuestion && (
+                          {/*
+                            Once this stage has an answer it is listed above, so
+                            an empty form here would suggest nothing had been
+                            recorded. The reviewer can reopen it on purpose.
+                          */}
+                          {interviewQuestion &&
+                            stageAnswer &&
+                            !reopened[criterion.id] && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setReopened((current) => ({
+                                    ...current,
+                                    [criterion.id]: true,
+                                  }))
+                                }
+                                className="focus-ring inline-flex items-center gap-1.5 rounded-lg text-xs font-semibold text-muted-foreground transition-colors hover:text-ink"
+                              >
+                                Record another answer for {currentStage}
+                              </button>
+                            )}
+
+                          {interviewQuestion &&
+                            (!stageAnswer || reopened[criterion.id]) &&
+                            (isUncertain ||
+                              isConflicting ||
+                              documentItem?.status === "uncertain" ||
+                              documentItem?.status === "conflicting") && (
                               <InterviewAnswerControl
                                 question={interviewQuestion}
                                 reviewer={reviewer}
                                 stage={currentStage}
-                                onRecord={(answer, status, capturedBy) =>
+                                onRecord={(answer, status, capturedBy) => {
+                                  setReopened((current) => ({
+                                    ...current,
+                                    [criterion.id]: false,
+                                  }));
                                   void persist(
                                     recordInterviewAnswer(
                                       criterion.id,
@@ -662,14 +716,14 @@ const Review = () => {
                                       status,
                                       capturedBy,
                                     ),
-                                  )
-                                }
+                                  );
+                                }}
                               />
                             )}
 
-                          {item && !item.recordedAtInterview && (
+                          {documentItem && (
                             <OverrideControl
-                              currentStatus={item.status}
+                              currentStatus={documentItem.status}
                               onOverride={(next, reason) =>
                                 void persist(
                                   overrideStatus(
@@ -735,7 +789,8 @@ const Review = () => {
               {record ? (
                 <div className="space-y-4">
                   <DecisionPanel
-                    decision={record.humanDecision}
+                    decision={stageDecision}
+                    history={decisionHistory}
                     reviewer={reviewer}
                     unresolvedCount={unresolvedCount}
                     stage={currentStage}

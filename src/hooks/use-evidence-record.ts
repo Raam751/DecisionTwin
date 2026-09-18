@@ -106,15 +106,30 @@ export function useEvidenceRecord(initial: EvidenceRecord | undefined) {
   );
 
   const clearDecision = useCallback((): EvidenceRecord | null => {
-    if (!record?.humanDecision) return null;
+    if (!record) return null;
 
-    const cleared = record.humanDecision;
+    // Retract the CURRENT stage's decision only. Earlier stages keep theirs,
+    // because reopening the Round 2 call must not erase what was decided at
+    // Screening. humanDecision falls back to the latest remaining decision so
+    // any view reading it still shows the most recent real call.
+    const stage = currentStageOf(record);
+    const all = record.decisions ?? [];
+    const remaining = all.filter((decision) => decision.stage !== stage);
+    if (remaining.length === all.length && !record.humanDecision) return null;
+
+    const latest =
+      remaining.length > 0 ? remaining[remaining.length - 1] : null;
     const next: EvidenceRecord = {
       ...record,
-      humanDecision: null,
-      decisions: (record.decisions ?? []).filter(
-        (decision) => decision.timestamp !== cleared.timestamp,
-      ),
+      decisions: remaining,
+      humanDecision: latest
+        ? {
+            disposition: latest.disposition,
+            reason: latest.reason,
+            reviewerName: latest.reviewerName,
+            timestamp: latest.timestamp,
+          }
+        : null,
     };
     setRecord(next);
     return next;
