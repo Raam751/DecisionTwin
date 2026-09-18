@@ -1,22 +1,54 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { BadgeCheck, CircleDashed, Mic, Pause, Play, Scale } from "lucide-react";
+import {
+  BadgeCheck,
+  CircleDashed,
+  FileText,
+  Link2,
+  Mic,
+  Pause,
+  Play,
+  Scale,
+  Search,
+} from "lucide-react";
 
 import { PriorityChip } from "@/components/priority-chip";
 import { cn } from "@/lib/utils";
+
+interface Point {
+  x: number;
+  y: number;
+}
+
+/** Point on a cubic bezier at parameter u (0 → 1). */
+function bezierAt(u: number, p0: Point, c1: Point, c2: Point, p1: Point): Point {
+  const mt = 1 - u;
+  return {
+    x:
+      mt * mt * mt * p0.x +
+      3 * mt * mt * u * c1.x +
+      3 * mt * u * u * c2.x +
+      u * u * u * p1.x,
+    y:
+      mt * mt * mt * p0.y +
+      3 * mt * mt * u * c1.y +
+      3 * mt * u * u * c2.y +
+      u * u * u * p1.y,
+  };
+}
 
 /**
  * The hero mechanism: a live, scrubbable walkthrough of how DecisionTwin
  * works, built out of the same tokens as the product itself.
  *
- * A stylised resume is read line by line; one line is highlighted, a thread
- * draws from it to a role criterion, a Verified seal lands, a second criterion
- * finds nothing and becomes an interview question, and a human decision is
- * recorded. The whole thing loops gently and never blocks the visitor: hover
- * or click any criterion to replay its step, drag the timeline to scrub, and
- * the play/pause control stops or starts the loop.
+ * The document is read line by line. Two claims are pulled out, threaded to
+ * their criteria and verified; a third criterion is searched for and found
+ * absent, so it becomes an interview question; then a human decision is
+ * recorded and the case settles. It loops gently at half speed, and never
+ * blocks the visitor: hover or click any criterion to replay its step, drag
+ * the timeline to scrub, and the play/pause control stops or starts the loop.
  *
  * Under prefers-reduced-motion it renders the settled, composed state directly
- * — highlighted line, drawn thread, verified seal — with no animation.
+ * — highlighted lines, drawn threads, verified seals — with no animation.
  */
 export function HeroMechanism() {
   const [prefersReduced, setPrefersReduced] = useState(false);
@@ -36,39 +68,47 @@ export function HeroMechanism() {
   const reduced = prefersReduced;
   const effectiveT = reduced ? 1 : t;
 
-  // The timeline is one pass through the mechanism, 0 → 1, looping.
+  // One pass through the mechanism, 0 → 1, at half the original pace.
   const W = {
-    reveal: [0.0, 0.06],
-    line: [0.06, 0.12],
-    thread1: [0.12, 0.22],
-    verified: [0.22, 0.3],
-    scan: [0.3, 0.38],
-    amber: [0.38, 0.46],
-    question: [0.46, 0.56],
-    decision: [0.58, 0.68],
+    reveal: [0.0, 0.1],
+    line4: [0.1, 0.14],
+    thread1: [0.14, 0.21],
+    verified1: [0.21, 0.27],
+    line5: [0.28, 0.31],
+    thread2: [0.31, 0.38],
+    verified2: [0.38, 0.44],
+    scan: [0.45, 0.51],
+    thread3: [0.51, 0.56],
+    amber: [0.56, 0.62],
+    question: [0.62, 0.71],
+    decision: [0.73, 0.81],
   } as const;
 
-  const progress = (start: number, end: number): number => {
+  const prog = (start: number, end: number): number => {
     const raw = (effectiveT - start) / (end - start);
     return Math.min(1, Math.max(0, raw));
   };
 
-  const revealP = progress(W.reveal[0], W.reveal[1]);
-  const lineP = progress(W.line[0], W.line[1]);
-  const thread1P = progress(W.thread1[0], W.thread1[1]);
-  const verifiedP = progress(W.verified[0], W.verified[1]);
-  const scanP = progress(W.scan[0], W.scan[1]);
-  const amberP = progress(W.amber[0], W.amber[1]);
-  const questionP = progress(W.question[0], W.question[1]);
-  const decisionP = progress(W.decision[0], W.decision[1]);
+  const revealP = prog(W.reveal[0], W.reveal[1]);
+  const line4P = prog(W.line4[0], W.line4[1]);
+  const thread1P = prog(W.thread1[0], W.thread1[1]);
+  const verified1P = prog(W.verified1[0], W.verified1[1]);
+  const line5P = prog(W.line5[0], W.line5[1]);
+  const thread2P = prog(W.thread2[0], W.thread2[1]);
+  const verified2P = prog(W.verified2[0], W.verified2[1]);
+  const scanP = prog(W.scan[0], W.scan[1]);
+  const thread3P = prog(W.thread3[0], W.thread3[1]);
+  const amberP = prog(W.amber[0], W.amber[1]);
+  const questionP = prog(W.question[0], W.question[1]);
+  const decisionP = prog(W.decision[0], W.decision[1]);
 
-  // Gentle autoplay. It pauses the instant the visitor reaches for anything,
-  // so the animation can never block the page.
+  // Gentle autoplay at half speed. It pauses the instant the visitor reaches
+  // for anything, so the animation can never block the page.
   useEffect(() => {
     if (reduced) return;
     let raf = 0;
     let last = performance.now();
-    const SPEED = 0.105;
+    const SPEED = 0.0525;
     const tick = (now: number) => {
       raf = requestAnimationFrame(tick);
       const dt = Math.min((now - last) / 1000, 0.05);
@@ -84,8 +124,26 @@ export function HeroMechanism() {
     return () => cancelAnimationFrame(raf);
   }, [playing, reduced]);
 
-  // Measure where the threads must connect: the highlighted resume line on the
-  // left, the criterion cards on the right. Re-measured whenever the stage or
+  const LINES = [
+    "Priya Menon — Platform Engineer, Bengaluru",
+    "Seven years building internal developer platforms.",
+    "Senior Platform Engineer, Northwind Payments, 2021–present",
+    "Owned the partner-facing REST API end to end, including versioning and deprecation policy.",
+    "Served as on-call lead for the payments gateway.",
+    "Designed the normalised schema for the shipment tracking service.",
+  ];
+
+  // Criteria, in the order they appear. lineIndex is the resume line (0-based)
+  // that the found threads must connect to; the searched one connects to the
+  // line being examined when nothing is found.
+  const CRITERIA = [
+    { label: "API ownership", required: true, lineIndex: 3, question: "" },
+    { label: "Incident response", required: true, lineIndex: 4, question: "" },
+    { label: "Production Kubernetes", required: true, lineIndex: 5, question: "Which production Kubernetes workloads have you operated?" },
+    { label: "Data modelling", required: false, lineIndex: -1, question: "" },
+  ];
+
+  // Measure where the threads must connect. Re-measured whenever the stage or
   // window resizes.
   const stageRef = useRef<HTMLDivElement>(null);
   const resumeRef = useRef<HTMLDivElement>(null);
@@ -96,42 +154,40 @@ export function HeroMechanism() {
     h: number;
     t1: { x1: number; y1: number; x2: number; y2: number };
     t2: { x1: number; y1: number; x2: number; y2: number };
+    t3: { x1: number; y1: number; x2: number; y2: number };
   } | null>(null);
 
   useLayoutEffect(() => {
     const measure = () => {
       const stage = stageRef.current;
       const resume = resumeRef.current;
-      const line = lineRefs.current[3];
+      const line4 = lineRefs.current[3];
+      const line5 = lineRefs.current[4];
+      const line6 = lineRefs.current[5];
       const card0 = cardRefs.current[0];
       const card1 = cardRefs.current[1];
-      if (!stage || !resume || !line || !card0 || !card1) return;
+      const card2 = cardRefs.current[2];
+      if (!stage || !resume || !line4 || !line5 || !line6 || !card0 || !card1 || !card2)
+        return;
 
       const sr = stage.getBoundingClientRect();
       const rel = (el: HTMLElement) => {
         const r = el.getBoundingClientRect();
         return { x: r.left - sr.left, y: r.top - sr.top, w: r.width, h: r.height };
       };
-      const lr = rel(line);
+      const r4 = rel(line4);
+      const r5 = rel(line5);
+      const r6 = rel(line6);
       const r0 = rel(card0);
       const r1 = rel(card1);
-      const rs = rel(resume);
+      const r2 = rel(card2);
 
       setPaths({
         w: sr.width,
         h: sr.height,
-        t1: {
-          x1: lr.x + lr.w,
-          y1: lr.y + lr.h / 2,
-          x2: r0.x,
-          y2: r0.y + r0.h / 2,
-        },
-        t2: {
-          x1: rs.x + rs.w,
-          y1: rs.y + rs.h * 0.55,
-          x2: r1.x,
-          y2: r1.y + r1.h / 2,
-        },
+        t1: { x1: r4.x + r4.w, y1: r4.y + r4.h / 2, x2: r0.x, y2: r0.y + r0.h / 2 },
+        t2: { x1: r5.x + r5.w, y1: r5.y + r5.h / 2, x2: r1.x, y2: r1.y + r1.h / 2 },
+        t3: { x1: r6.x + r6.w, y1: r6.y + r6.h / 2, x2: r2.x, y2: r2.y + r2.h / 2 },
       });
     };
     measure();
@@ -144,14 +200,12 @@ export function HeroMechanism() {
     };
   }, []);
 
-  const curve = (x1: number, y1: number, x2: number, y2: number) =>
-    `M ${x1} ${y1} C ${x1 + 64} ${y1}, ${x2 - 64} ${y2}, ${x2} ${y2}`;
+  const curve = (p0: Point, p2: Point) =>
+    `M ${p0.x} ${p0.y} C ${p0.x + 64} ${p0.y}, ${p2.x - 64} ${p2.y}, ${p2.x} ${p2.y}`;
 
   const focusCriterion = useCallback((index: number) => {
     interactingRef.current = true;
-    // Jump to the step where that criterion is doing its work.
-    const target =
-      index === 0 ? 0.16 : index === 1 ? 0.42 : 0.62;
+    const target = [0.16, 0.34, 0.6, 0.76][index] ?? 0.76;
     setT(target);
   }, []);
 
@@ -159,32 +213,21 @@ export function HeroMechanism() {
     interactingRef.current = false;
   }, []);
 
-  const LINES = [
-    "Priya Menon — Platform Engineer, Bengaluru",
-    "Seven years building internal developer platforms.",
-    "Senior Platform Engineer, Northwind Payments, 2021–present",
-    "Owned the partner-facing REST API end to end, including versioning and deprecation policy.",
-    "Served as on-call lead for the payments gateway.",
-    "Designed the normalised schema for the shipment tracking service.",
+  // A running transcript of the mechanism's current step.
+  const STEPS = [
+    { at: 0, Icon: FileText, label: "Reading the source document" },
+    { at: 0.1, Icon: Link2, label: "Linking a claim to a criterion" },
+    { at: 0.21, Icon: BadgeCheck, label: "Citation verified against the source" },
+    { at: 0.31, Icon: Link2, label: "Linking a second claim" },
+    { at: 0.38, Icon: BadgeCheck, label: "Second citation verified" },
+    { at: 0.45, Icon: Search, label: "Searching for Kubernetes evidence" },
+    { at: 0.56, Icon: CircleDashed, label: "No supporting evidence found" },
+    { at: 0.62, Icon: Mic, label: "Becomes an interview question" },
+    { at: 0.72, Icon: Scale, label: "Recording the human decision" },
+    { at: 0.8, Icon: BadgeCheck, label: "Review complete — replayable start to finish" },
   ];
-
-  const CRITERIA = [
-    {
-      label: "API ownership",
-      required: true,
-      question: "",
-    },
-    {
-      label: "Production Kubernetes",
-      required: true,
-      question: "Which production Kubernetes workloads have you operated?",
-    },
-    {
-      label: "Data modelling",
-      required: false,
-      question: "",
-    },
-  ];
+  const currentStep = STEPS.filter((step) => effectiveT >= step.at).pop() ?? STEPS[0];
+  const StepIcon = currentStep.Icon;
 
   return (
     <div
@@ -212,20 +255,35 @@ export function HeroMechanism() {
         </span>
       </div>
 
+      {/* Step transcript */}
+      <div
+        className="mt-3 flex items-center gap-2 rounded-xl bg-canvas-deep px-3 py-2"
+        style={{ opacity: revealP, transition: "opacity 300ms ease" }}
+      >
+        <StepIcon className="h-3.5 w-3.5 shrink-0 text-brand-deep" />
+        <span className="font-mono text-2xs font-medium text-ink">
+          {currentStep.label}
+        </span>
+      </div>
+
       <div className="mt-3 flex flex-col gap-4 sm:flex-row">
         {/* Stylised resume */}
         <div
           ref={resumeRef}
-          className="w-full shrink-0 rounded-2xl border-2 border-line bg-surface p-3.5 sm:w-[46%]"
+          className="relative w-full shrink-0 rounded-2xl border-2 border-line bg-surface p-3.5 sm:w-[46%]"
         >
           <p className="mb-2 flex items-center gap-2 text-2xs font-semibold uppercase tracking-widest text-muted-foreground">
             Resume · numbered lines
           </p>
           <ol className="space-y-1">
             {LINES.map((text, index) => {
-              const isFoundLine = index === 3;
-              const highlighted = isFoundLine && lineP > 0;
-              const scanning = index >= 3 && index <= 5 && scanP > 0 && !isFoundLine;
+              const isLine4 = index === 3;
+              const isLine5 = index === 4;
+              const isSearched = index === 5;
+              const highlighted = (isLine4 && line4P > 0) || (isLine5 && line5P > 0);
+              const searching = isSearched && scanP > 0;
+              const revealStart = 0.002 + index * 0.012;
+              const lineReveal = prog(revealStart, revealStart + 0.03);
               return (
                 <li
                   key={text}
@@ -233,13 +291,17 @@ export function HeroMechanism() {
                     lineRefs.current[index] = node;
                   }}
                   className={cn(
-                    "flex items-start gap-3 rounded-lg border-2 border-transparent px-2 py-1 transition-colors duration-200",
-                    highlighted && "border-peach-foreground/30 bg-peach",
-                    scanning && "border-uncertain/30 bg-uncertain-soft",
+                    "flex items-start gap-3 rounded-lg border-2 px-2 py-1 transition-colors duration-200",
+                    highlighted
+                      ? "border-peach-foreground/30 bg-peach"
+                      : searching
+                        ? "border-uncertain/30 bg-uncertain-soft"
+                        : "border-transparent",
                   )}
                   style={{
                     opacity:
-                      (0.55 + 0.45 * revealP) * (highlighted ? 1 : scanning ? 0.85 : 1),
+                      (0.55 + 0.45 * lineReveal) *
+                      (highlighted ? 1 : searching ? 0.85 : 1),
                   }}
                 >
                   <span className="w-4 shrink-0 select-none text-right font-mono text-2xs tabular-nums text-muted-foreground">
@@ -262,10 +324,12 @@ export function HeroMechanism() {
         {/* Role criteria */}
         <div className="flex min-w-0 flex-1 flex-col justify-center gap-3">
           {CRITERIA.map((criterion, index) => {
-            const linked = index === 0 && thread1P > 0;
-            const verified = index === 0 && verifiedP > 0;
-            const amber = index === 1 && amberP > 0;
-            const question = index === 1 && questionP > 0;
+            const linked = thread1P > 0 && index === 0;
+            const verified =
+              (index === 0 && verified1P > 0) || (index === 1 && verified2P > 0);
+            const amber = index === 2 && amberP > 0;
+            const scanned = index === 2 && scanP > 0;
+            const verifyP = index === 0 ? verified1P : index === 1 ? verified2P : 0;
 
             return (
               <div key={criterion.label} className="relative">
@@ -286,16 +350,22 @@ export function HeroMechanism() {
                       ? "border-supported/40 bg-supported-soft"
                       : amber
                         ? "border-uncertain/40 bg-uncertain-soft"
-                        : linked
-                          ? "border-brand/40 bg-card"
-                          : "border-line bg-card",
+                        : scanned
+                          ? "border-uncertain/30 bg-uncertain-soft/60"
+                          : linked
+                            ? "border-brand/40 bg-card"
+                            : "border-line bg-card",
                   )}
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <span
                       className={cn(
                         "text-sm font-semibold",
-                        verified ? "text-supported" : amber ? "text-uncertain" : "text-ink",
+                        verified
+                          ? "text-supported"
+                          : amber || scanned
+                            ? "text-uncertain"
+                            : "text-ink",
                       )}
                     >
                       {criterion.label}
@@ -305,14 +375,26 @@ export function HeroMechanism() {
 
                   <span className="mt-1.5 block text-2xs leading-relaxed text-muted-foreground">
                     {verified ? (
-                      <span className="inline-flex items-center gap-1.5 font-medium text-supported">
+                      <span
+                        className="inline-flex items-center gap-1.5 font-medium text-supported"
+                        style={{
+                          transform: `scale(${0.6 + 0.4 * verifyP})`,
+                          transformOrigin: "left center",
+                          transition: "transform 200ms ease",
+                        }}
+                      >
                         <BadgeCheck className="h-3.5 w-3.5" />
-                        Verified — quote checked against lines 4–5
+                        Verified — quote checked against the document
                       </span>
                     ) : amber ? (
                       <span className="inline-flex items-center gap-1.5 font-medium text-uncertain">
                         <CircleDashed className="h-3.5 w-3.5" />
                         No supporting evidence found in this document
+                      </span>
+                    ) : scanned ? (
+                      <span className="inline-flex items-center gap-1.5 font-medium text-uncertain">
+                        <Search className="h-3.5 w-3.5" />
+                        Searching for evidence…
                       </span>
                     ) : (
                       "Awaiting review"
@@ -321,13 +403,11 @@ export function HeroMechanism() {
                 </button>
 
                 {/* Interview question, born from the amber criterion */}
-                {question && (
-                  <div
-                    className="pop-in mt-2 flex items-start gap-2 rounded-xl border-2 border-interview/30 bg-interview-soft px-3 py-2"
-                  >
+                {index === 2 && questionP > 0 && (
+                  <div className="pop-in mt-2 flex items-start gap-2 rounded-xl border-2 border-interview/30 bg-interview-soft px-3 py-2">
                     <Mic className="mt-0.5 h-3.5 w-3.5 shrink-0 text-interview" />
                     <span className="text-2xs leading-relaxed text-interview">
-                      Interview question: {CRITERIA[1].question}
+                      Interview question: {CRITERIA[2].question}
                     </span>
                   </div>
                 )}
@@ -337,7 +417,7 @@ export function HeroMechanism() {
         </div>
       </div>
 
-      {/* Threads between the resume and the criteria */}
+      {/* Threads between the resume and the criteria, plus travelling dots */}
       {paths && (
         <svg
           className="pointer-events-none absolute inset-0 h-full w-full"
@@ -345,33 +425,103 @@ export function HeroMechanism() {
           height={paths.h}
           aria-hidden
         >
-          {/* Thread 1: a found citation. Draws, then stays. */}
-          <path
-            d={curve(paths.t1.x1, paths.t1.y1, paths.t1.x2, paths.t1.y2)}
-            fill="none"
-            stroke="hsl(var(--brand))"
-            strokeWidth={3}
-            strokeLinecap="round"
-            pathLength={1}
-            strokeDasharray="1"
-            strokeDashoffset={1 - thread1P}
-            style={{ opacity: 0.9, transition: "stroke-dashoffset 60ms linear" }}
-          />
-          {/* Thread 2: the search that finds nothing. Dashes, then fades. */}
-          <path
-            d={curve(paths.t2.x1, paths.t2.y1, paths.t2.x2, paths.t2.y2)}
-            fill="none"
-            stroke="hsl(var(--uncertain))"
-            strokeWidth={3}
-            strokeLinecap="round"
-            strokeDasharray="0.01 0.03"
-            pathLength={1}
-            strokeDashoffset={1 - scanP}
-            style={{
-              opacity: scanP > 0 ? 0.85 * (1 - amberP * 0.85) : 0,
-              transition: "opacity 200ms ease",
-            }}
-          />
+          {/* Found threads: draw, glow softly, then stay */}
+          {[
+            {
+              p: paths.t1,
+              done: thread1P,
+              glow: thread1P,
+              dot: thread1P,
+              stroke: "hsl(var(--brand))",
+            },
+            {
+              p: paths.t2,
+              done: thread2P,
+              glow: thread2P,
+              dot: thread2P,
+              stroke: "hsl(var(--brand))",
+            },
+          ].map((thread, i) => {
+            const dot =
+              thread.dot > 0.01
+                ? bezierAt(
+                    Math.min(thread.dot, 1),
+                    { x: thread.p.x1, y: thread.p.y1 },
+                    { x: thread.p.x1 + 64, y: thread.p.y1 },
+                    { x: thread.p.x2 - 64, y: thread.p.y2 },
+                    { x: thread.p.x2, y: thread.p.y2 },
+                  )
+                : null;
+            return (
+              <g key={i}>
+                <path
+                  d={curve({ x: thread.p.x1, y: thread.p.y1 }, { x: thread.p.x2, y: thread.p.y2 })}
+                  fill="none"
+                  stroke={thread.stroke}
+                  strokeWidth={8}
+                  strokeLinecap="round"
+                  opacity={0.14 * thread.glow}
+                  style={{ transition: "opacity 200ms ease" }}
+                />
+                <path
+                  d={curve({ x: thread.p.x1, y: thread.p.y1 }, { x: thread.p.x2, y: thread.p.y2 })}
+                  fill="none"
+                  stroke={thread.stroke}
+                  strokeWidth={3}
+                  strokeLinecap="round"
+                  pathLength={1}
+                  strokeDasharray="1"
+                  strokeDashoffset={1 - thread.done}
+                  style={{
+                    opacity: 0.9,
+                    transition: "stroke-dashoffset 60ms linear",
+                  }}
+                />
+                {dot && <circle r={4} fill={thread.stroke} cx={dot.x} cy={dot.y} />}
+              </g>
+            );
+          })}
+
+          {/* The search thread: dashes in, then fades once nothing is found */}
+          {(() => {
+            const dot =
+              thread3P > 0.01
+                ? bezierAt(
+                    Math.min(thread3P, 1),
+                    { x: paths.t3.x1, y: paths.t3.y1 },
+                    { x: paths.t3.x1 + 64, y: paths.t3.y1 },
+                    { x: paths.t3.x2 - 64, y: paths.t3.y2 },
+                    { x: paths.t3.x2, y: paths.t3.y2 },
+                  )
+                : null;
+            return (
+              <g>
+                <path
+                  d={curve({ x: paths.t3.x1, y: paths.t3.y1 }, { x: paths.t3.x2, y: paths.t3.y2 })}
+                  fill="none"
+                  stroke="hsl(var(--uncertain))"
+                  strokeWidth={3}
+                  strokeLinecap="round"
+                  strokeDasharray="0.01 0.03"
+                  pathLength={1}
+                  strokeDashoffset={1 - thread3P}
+                  style={{
+                    opacity: scanP > 0 ? 0.85 * (1 - amberP * 0.85) : 0,
+                    transition: "opacity 200ms ease",
+                  }}
+                />
+                {dot && (
+                  <circle
+                    r={3.5}
+                    fill="hsl(var(--uncertain))"
+                    cx={dot.x}
+                    cy={dot.y}
+                    style={{ opacity: 1 - amberP * 0.85 }}
+                  />
+                )}
+              </g>
+            );
+          })()}
         </svg>
       )}
 
