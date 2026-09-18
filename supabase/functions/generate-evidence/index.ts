@@ -6,9 +6,14 @@
  * before returning or storing anything.
  *
  * Required secrets:
- *   MODEL_API_URL   Anthropic Messages API endpoint
+ *   MODEL_API_URL   model endpoint, base URL is fine, the path is normalised
  *   MODEL_API_KEY   credential for that endpoint
- *   MODEL_NAME      model identifier (Anthropic Messages protocol)
+ *   MODEL_NAME      model identifier
+ * Optional:
+ *   MODEL_PROTOCOL  "anthropic" or "openai". Auto-detected when unset:
+ *                   a model name containing "claude" uses the Anthropic
+ *                   Messages protocol, everything else uses OpenAI-compatible
+ *                   chat completions.
  * Provided automatically by Supabase:
  *   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
  *
@@ -16,123 +21,12 @@
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-// ---------------------------------------------------------------------------
-// Shared module, inlined because the deployment bundler only bundles the single
-// function file. Mirrors supabase/functions/_shared/verify.ts.
-// ---------------------------------------------------------------------------
-
-export type EvidenceStatus = "supported" | "uncertain" | "conflicting";
-
-export interface DocumentLine {
-  lineNumber: number;
-  text: string;
-}
-
-export interface EvidenceItem {
-  criterionId: string;
-  status: EvidenceStatus;
-  quotedText: string;
-  sourceStartLine: number;
-  sourceEndLine: number;
-  explanation: string;
-  citationVerified: boolean;
-}
-
-export const normalise = (value: string): string =>
-  String(value ?? "")
-    .replace(/\s+/g, " ")
-    .trim()
-    .toLowerCase();
-
-/** Joins a line range exactly the way verification expects. */
-export function joinRange(
-  lines: DocumentLine[],
-  startLine: number,
-  endLine: number,
-): string {
-  return lines
-    .filter((l) => l.lineNumber >= startLine && l.lineNumber <= endLine)
-    .sort((a, b) => a.lineNumber - b.lineNumber)
-    .map((l) => l.text)
-    .join(" ");
-}
-
-const UNVERIFIED_EXPLANATION =
-  "Citation could not be verified against the source document.";
-
-/**
- * Verifies one item, downgrading it when the citation does not hold up.
- * A claim the server cannot confirm becomes uncertain rather than supported.
- */
-export function verifyItem(
-  item: EvidenceItem,
-  lines: DocumentLine[],
-): EvidenceItem {
-  if (item.status === "uncertain") {
-    return {
-      ...item,
-      quotedText: "",
-      sourceStartLine: 0,
-      sourceEndLine: 0,
-      citationVerified: false,
-    };
-  }
-
-  const rangeIsSane =
-    Number.isInteger(item.sourceStartLine) &&
-    Number.isInteger(item.sourceEndLine) &&
-    item.sourceStartLine >= 1 &&
-    item.sourceEndLine >= item.sourceStartLine &&
-    lines.some((l) => l.lineNumber === item.sourceStartLine) &&
-    lines.some((l) => l.lineNumber === item.sourceEndLine);
-
-  const quote = normalise(item.quotedText);
-  const haystack = rangeIsSane
-    ? normalise(joinRange(lines, item.sourceStartLine, item.sourceEndLine))
-    : "";
-
-  const holds = rangeIsSane && quote.length > 0 && haystack.includes(quote);
-
-  if (holds) {
-    return { ...item, citationVerified: true };
-  }
-
-  return {
-    ...item,
-    status: "uncertain",
-    quotedText: "",
-    sourceStartLine: 0,
-    sourceEndLine: 0,
-    explanation: UNVERIFIED_EXPLANATION,
-    citationVerified: false,
-  };
-}
-
-export function verifyAll(
-  items: EvidenceItem[],
-  lines: DocumentLine[],
-): { verified: EvidenceItem[]; rejected: string[] } {
-  const rejected: string[] = [];
-  const verified = items.map((item) => {
-    const result = verifyItem(item, lines);
-    if (item.status !== "uncertain" && result.status === "uncertain") {
-      rejected.push(item.criterionId);
-    }
-    return result;
-  });
-  return { verified, rejected };
-}
-
-/** Cheap deterministic hash of the model input, for the replay record. */
-export async function hashInput(value: string): Promise<string> {
-  const bytes = new TextEncoder().encode(value);
-  const digest = await crypto.subtle.digest("SHA-256", bytes);
-  return Array.from(new Uint8Array(digest))
-    .slice(0, 8)
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-}
+import {
+  type DocumentLine,
+  type EvidenceItem,
+  hashInput,
+  verifyAll,
+} from "../_shared/verify.ts";
 
 const PROMPT_VERSION = "v1";
 const SCHEMA_VERSION = "v1";
@@ -203,6 +97,127 @@ function extractJson(raw: string): unknown {
   return JSON.parse(trimmed.slice(start, end + 1));
 }
 
+const SYSTEM_PROMPT =
+  "You return only valid JSON. You never invent evidence that is not in the source document. You copy quotes verbatim.";
+
+const MAX_TOKENS = 4000;
+const ANTHROPIC_VERSION = "2023-06-01";
+
+type Protocol = "anthropic" | "openai";
+
+function resolveProtocol(): Protocol {
+  const explicit = Deno.env.get("MODEL_PROTOCOL")?.toLowerCase().trim();
+  if (explicit === "anthropic" || explicit === "openai") return explicit;
+
+  const model = (Deno.env.get("MODEL_NAME") ?? "").toLowerCase();
+  const url = (Deno.env.get("MODEL_API_URL") ?? "").toLowerCase();
+  if (model.includes("claude") || url.includes("/messages")) return "anthropic";
+  return "openai";
+}
+
+/**
+ * Gateways are strict about routes, and people paste base URLs. Normalise to
+ * the correct path for the protocol without breaking an already correct URL.
+ */
+function resolveUrl(protocol: Protocol): string {
+  const raw = (Deno.env.get("MODEL_API_URL") ?? "").trim().replace(/\/+$/, "");
+  if (protocol === "anthropic") {
+    if (raw.includes("/messages")) return raw;
+    return raw.endsWith("/v1") ? `${raw}/messages` : `${raw}/v1/messages`;
+  }
+  if (raw.includes("/chat/completions")) return raw;
+  return raw.endsWith("/v1") ? `${raw}/chat/completions` : `${raw}/v1/chat/completions`;
+}
+
+interface CallOptions {
+  /** OpenAI JSON mode, or Anthropic assistant prefill. Both force JSON. */
+  forceJson: boolean;
+}
+
+async function postModel(
+  prompt: string,
+  protocol: Protocol,
+  { forceJson }: CallOptions,
+): Promise<Response> {
+  const key = Deno.env.get("MODEL_API_KEY")!;
+  const model = Deno.env.get("MODEL_NAME")!;
+  const url = resolveUrl(protocol);
+
+  if (protocol === "anthropic") {
+    const messages: { role: string; content: string }[] = [
+      { role: "user", content: prompt },
+    ];
+    // Prefilling the assistant turn with "{" is the Anthropic way to force JSON.
+    if (forceJson) messages.push({ role: "assistant", content: "{" });
+
+    return await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": key,
+        "anthropic-version": ANTHROPIC_VERSION,
+        // Some gateways proxy to Anthropic and expect a bearer token instead.
+        Authorization: `Bearer ${key}`,
+      },
+      body: JSON.stringify({
+        model,
+        max_tokens: MAX_TOKENS,
+        temperature: 0,
+        system: SYSTEM_PROMPT,
+        messages,
+      }),
+    });
+  }
+
+  const body: Record<string, unknown> = {
+    model,
+    temperature: 0,
+    max_tokens: MAX_TOKENS,
+    messages: [
+      { role: "system", content: SYSTEM_PROMPT },
+      { role: "user", content: prompt },
+    ],
+  };
+  if (forceJson) body.response_format = { type: "json_object" };
+
+  return await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${key}`,
+    },
+    body: JSON.stringify(body),
+  });
+}
+
+async function readContent(
+  response: Response,
+  protocol: Protocol,
+  { forceJson }: CallOptions,
+): Promise<string> {
+  const payload = await response.json();
+
+  if (protocol === "anthropic") {
+    const blocks = Array.isArray(payload?.content) ? payload.content : [];
+    const text = blocks
+      .filter((b: { type?: string }) => b?.type === "text")
+      .map((b: { text?: string }) => b?.text ?? "")
+      .join("");
+    if (!text) throw new Error("unexpected model response");
+    // Put back the brace we prefilled so the JSON is complete.
+    return forceJson ? `{${text}` : text;
+  }
+
+  const content = payload?.choices?.[0]?.message?.content;
+  if (typeof content !== "string") throw new Error("unexpected model response");
+  return content;
+}
+
+/**
+ * Calls the model and tolerates the usual provider differences: a gateway that
+ * rejects forced JSON, and a model that wraps JSON in prose. Falls back once on
+ * a 4xx, then once more if parsing fails.
+ */
 async function callModel(prompt: string): Promise<unknown> {
   const url = Deno.env.get("MODEL_API_URL");
   const key = Deno.env.get("MODEL_API_KEY");
@@ -213,41 +228,33 @@ async function callModel(prompt: string): Promise<unknown> {
     );
   }
 
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${key}`,
-      "X-Enter-Project-ID": "258d79bdfe7640768e659cd9b20b75ed",
-      "X-Session-ID": crypto.randomUUID(),
-    },
-    body: JSON.stringify({
-      model,
-      temperature: 0,
-      max_tokens: 4096,
-      system:
-        "You return only valid JSON. You never invent evidence that is not in the source document.",
-      messages: [{ role: "user", content: prompt }],
-    }),
-  });
+  const protocol = resolveProtocol();
+  let options: CallOptions = { forceJson: true };
+  let response = await postModel(prompt, protocol, options);
+
+  if (!response.ok && response.status >= 400 && response.status < 500) {
+    options = { forceJson: false };
+    response = await postModel(prompt, protocol, options);
+  }
 
   if (!response.ok) {
-    throw new Error(`model returned ${response.status}`);
+    const detail = await response.text().catch(() => "");
+    throw new Error(
+      `model returned ${response.status} from ${resolveUrl(protocol)} using the ${protocol} protocol${
+        detail ? `: ${detail.slice(0, 300)}` : ""
+      }`,
+    );
   }
 
-  const payload = await response.json();
-  const content = Array.isArray(payload?.content)
-    ? payload.content
-        .filter(
-          (block: { type?: string; text?: string }) => block.type === "text",
-        )
-        .map((block: { text?: string }) => block.text ?? "")
-        .join("")
-    : null;
-  if (typeof content !== "string" || content.length === 0) {
-    throw new Error("unexpected model response");
+  const content = await readContent(response, protocol, options);
+  try {
+    return extractJson(content);
+  } catch {
+    const retryOptions: CallOptions = { forceJson: false };
+    const retry = await postModel(prompt, protocol, retryOptions);
+    if (!retry.ok) throw new Error(`model returned ${retry.status} on retry`);
+    return extractJson(await readContent(retry, protocol, retryOptions));
   }
-  return extractJson(content);
 }
 
 Deno.serve(async (req) => {
