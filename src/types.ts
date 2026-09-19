@@ -61,6 +61,45 @@ export interface EvidenceItem {
   recordedAt?: string;
 }
 
+/**
+ * What the model claimed before the server checked it.
+ *
+ * Deliberately a separate type from EvidenceItem, with no citationVerified
+ * field, so a proposal can never be mistaken for verified evidence anywhere in
+ * the app.
+ */
+export interface ProposedEvidence {
+  criterionId: string;
+  status: EvidenceStatus;
+  quotedText: string;
+  sourceStartLine: number;
+  sourceEndLine: number;
+  explanation: string;
+}
+
+/** One criterion's before and after status in a masked rerun. */
+export interface SensitivityComparison {
+  criterionId: string;
+  unmaskedStatus: EvidenceStatus | "missing";
+  maskedStatus: EvidenceStatus | "missing";
+  changed: boolean;
+}
+
+/**
+ * The result of rerunning extraction with identity signals removed.
+ *
+ * This is a review trigger, not a fairness result. It masks the candidate's name
+ * and pronouns only, so it cannot detect every proxy, and a changed status means
+ * "a human should look at this", nothing more.
+ */
+export interface SensitivityDiagnostic {
+  runTimestamp: string;
+  /** Plain description of what was masked, so the UI never overclaims. */
+  maskedFields: string;
+  comparisons: SensitivityComparison[];
+  changedCount: number;
+}
+
 export interface InterviewQuestion {
   criterionId: string;
   question: string;
@@ -115,4 +154,11 @@ export interface EvidenceRecord {
    * When a decision exists, humanDecision mirrors the last entry.
    */
   decisions?: StageDecision[];
+  /**
+   * What the model proposed before server-side verification ran. Kept so a
+   * reviewer can see exactly what verification changed. Never verified.
+   */
+  modelProposal?: ProposedEvidence[];
+  /** The most recent masked rerun diagnostic, when one has been run. */
+  sensitivityDiagnostic?: SensitivityDiagnostic | null;
 }

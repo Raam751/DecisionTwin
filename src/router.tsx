@@ -8,6 +8,7 @@ import NewRole from "./pages/NewRole";
 import NotFound from "./pages/NotFound";
 import Review from "./pages/Review";
 import Roles from "./pages/Roles";
+import Search from "./pages/Search";
 
 export const routers = [
   {
@@ -49,6 +50,11 @@ export const routers = [
     path: "/decisions",
     name: "decisions",
     element: <AppShell><Decisions /></AppShell>,
+  },
+  {
+    path: "/search",
+    name: "search",
+    element: <AppShell><Search /></AppShell>,
   },
   /* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */
   {

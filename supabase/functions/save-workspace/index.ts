@@ -10,7 +10,7 @@
  * every other browser: reads filter by the same id.
  *
  * The payload is validated and reshaped here so malformed input can never
- * corrupt a row — only the fields the screens actually use are stored.
+ * corrupt a row. Only the fields the screens actually use are stored.
  *
  * Self-contained on purpose: the deploy platform bundles this file alone.
  *

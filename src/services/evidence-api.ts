@@ -6,9 +6,11 @@ import type {
   EvidenceRecord,
   HumanDecision,
   InterviewQuestion,
+  ProposedEvidence,
   ReplayMetadata,
   ReviewerEdit,
   Role,
+  SensitivityDiagnostic,
   StageDecision,
 } from "@/types";
 
@@ -43,6 +45,8 @@ interface StoredRow {
   reviewer_edits: ReviewerEdit[] | null;
   human_decision: HumanDecision | null;
   replay_metadata: ReplayMetadata;
+  model_proposal?: ProposedEvidence[] | null;
+  sensitivity_diagnostic?: SensitivityDiagnostic | null;
   current_stage?: string | null;
   decisions?: StageDecision[] | null;
 }
@@ -83,6 +87,8 @@ export async function fetchStoredRecord(
       replayMetadata: row.replay_metadata,
       currentStage: row.current_stage ?? undefined,
       decisions: row.decisions ?? undefined,
+      modelProposal: row.model_proposal ?? undefined,
+      sensitivityDiagnostic: row.sensitivity_diagnostic ?? null,
     };
   } catch {
     return null;

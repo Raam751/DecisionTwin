@@ -14,10 +14,12 @@ import {
 import { CoverageSummary } from "@/components/coverage-summary";
 import { DecisionPanel } from "@/components/decision-panel";
 import { InterviewAnswerControl } from "@/components/interview-answer-control";
+import { ModelProposalPanel } from "@/components/model-proposal-panel";
 import { InterviewTag } from "@/components/interview-tag";
 import { OverrideControl } from "@/components/override-control";
 import { PriorityChip } from "@/components/priority-chip";
 import { ReplayPanel } from "@/components/replay-panel";
+import { SensitivityPanel } from "@/components/sensitivity-panel";
 import { SaveStatus, type SaveState } from "@/components/save-status";
 import SourceDocument from "@/components/source-document";
 import { StatusBadge } from "@/components/status-badge";
@@ -28,6 +30,7 @@ import { currentStageOf, nextStage, STAGES } from "@/lib/stages";
 import { clashingLinesForItem } from "@/lib/citation-lines";
 import { fetchStoredRecord, generateEvidence } from "@/services/evidence-api";
 import { saveReview } from "@/services/review-api";
+import { runMaskedRerun } from "@/services/sensitivity-api";
 import { cn } from "@/lib/utils";
 import { evidenceRecords } from "@/data/seed";
 import { useRoles } from "@/state/roles-store";
@@ -35,6 +38,7 @@ import type {
   EvidenceItem,
   EvidenceRecord,
   RoleCriterion,
+  SensitivityDiagnostic,
   StageDecision,
 } from "@/types";
 
@@ -132,6 +136,12 @@ const Review = () => {
   // Criteria whose answer form the reviewer deliberately reopened, so a second
   // answer can be recorded in the same stage.
   const [reopened, setReopened] = useState<Record<string, boolean>>({});
+  const [maskedRunning, setMaskedRunning] = useState(false);
+  const [maskedError, setMaskedError] = useState<string | null>(null);
+  const [diagnostic, setDiagnostic] = useState<SensitivityDiagnostic | null>(
+    null,
+  );
+
   const [generating, setGenerating] = useState(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
   const [rejectedCitations, setRejectedCitations] = useState<string[]>([]);
@@ -150,6 +160,8 @@ const Review = () => {
     setSource("seed");
     setRejectedCitations([]);
     setGenerateError(null);
+    setDiagnostic(null);
+    setMaskedError(null);
     setSaveState("idle");
     setSaveMessage(null);
 
@@ -157,12 +169,27 @@ const Review = () => {
       if (cancelled || !stored || stored.evidence.length === 0) return;
       replaceRecord(stored);
       setSource("stored");
+      setDiagnostic(stored.sensitivityDiagnostic ?? null);
     });
 
     return () => {
       cancelled = true;
     };
   }, [candidateKey, replaceRecord]);
+
+  const runMasked = async () => {
+    if (!candidate) return;
+    setMaskedRunning(true);
+    setMaskedError(null);
+    try {
+      const result = await runMaskedRerun(role, candidate);
+      setDiagnostic(result.diagnostic);
+    } catch (error) {
+      setMaskedError((error as Error).message);
+    } finally {
+      setMaskedRunning(false);
+    }
+  };
 
   const runGeneration = async () => {
     if (!candidate) return;
@@ -174,6 +201,8 @@ const Review = () => {
       replaceRecord(result.record);
       setRejectedCitations(result.rejectedCitations);
       setSource("fresh");
+      setDiagnostic(null);
+      setMaskedError(null);
     } catch (error) {
       setGenerateError((error as Error).message);
     } finally {
@@ -917,10 +946,28 @@ const Review = () => {
             />
             <div className="mt-5">
               {record ? (
-                <ReplayPanel
-                  record={record}
-                  criterionLabel={criterionLabel}
-                />
+                <div className="space-y-4">
+                  {record.modelProposal && record.modelProposal.length > 0 && (
+                    <ModelProposalPanel
+                      proposal={record.modelProposal}
+                      evidence={record.evidence}
+                      criterionLabel={criterionLabel}
+                    />
+                  )}
+
+                  <SensitivityPanel
+                    diagnostic={diagnostic}
+                    running={maskedRunning}
+                    error={maskedError}
+                    criterionLabel={criterionLabel}
+                    onRun={runMasked}
+                  />
+
+                  <ReplayPanel
+                    record={record}
+                    criterionLabel={criterionLabel}
+                  />
+                </div>
               ) : (
                 <div className="card-surface p-6 text-sm text-muted-foreground">
                   Nothing is retained yet.
