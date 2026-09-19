@@ -7,7 +7,7 @@
  *
  * Editorial and document-led: a warm cream canvas with white cards lifted off
  * it, restrained colour that carries meaning, and type that reads like a well
- * made case file. Colour never carries a status on its own — every state pairs
+ * made case file. Colour never carries a status on its own, so every state pairs
  * its tone with an icon and a label.
  */
 @layer base {
@@ -537,4 +537,187 @@ body,
 @media (prefers-reduced-motion: reduce) {
   /* The clock seeks a composed final frame; never runs a reduced-motion loop. */
   .scene-animation-root * { animation-duration: 19047.619ms !important; animation-iteration-count: 1 !important; }
+}
+
+/* ---------------------------------------------------------------------------
+   Auditable hiring report
+   Scoped to .report-page so nothing here can affect the rest of the app. The
+   print rules exist so "Export as PDF" produces a clean compliance document
+   through the browser's own print dialog, with no PDF library in the bundle.
+   --------------------------------------------------------------------------- */
+
+.report-page {
+  min-height: 100%;
+  background: hsl(var(--background));
+  padding-bottom: 4rem;
+}
+
+.report-sheet {
+  margin: 1.5rem auto 0;
+  max-width: 52rem;
+  background: #ffffff;
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.75rem;
+  padding: 2.5rem;
+  color: #211a17;
+  font-size: 0.875rem;
+  line-height: 1.55;
+}
+
+.report-sheet h1 {
+  font-size: 1.6rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin: 0 0 0.5rem;
+}
+
+.report-sheet h2 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin: 0 0 0.35rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.75rem;
+}
+
+.report-sheet h3 {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: #6b5f58;
+  margin: 1.25rem 0 0.5rem;
+}
+
+.report-header {
+  border-bottom: 2px solid #ee5622;
+  padding-bottom: 0.9rem;
+  margin-bottom: 1.25rem;
+}
+
+.report-stage {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.66rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #6b5f58;
+}
+
+.report-note {
+  margin: 0 0 0.5rem;
+  color: #3a312c;
+}
+
+.report-candidate {
+  border-top: 1px solid hsl(var(--border));
+  padding-top: 1.35rem;
+  margin-top: 1.6rem;
+}
+
+.report-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+
+.report-table th {
+  text-align: left;
+  background: #f3ecdd;
+  border: 1px solid #e5dad3;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #6b5f58;
+}
+
+.report-table td {
+  border: 1px solid #e5dad3;
+  padding: 0.4rem 0.5rem;
+  vertical-align: top;
+}
+
+.report-tag {
+  display: inline-block;
+  margin-left: 0.4rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #6b5f58;
+}
+
+.report-quote {
+  display: block;
+  margin-top: 0.3rem;
+  padding-left: 0.55rem;
+  border-left: 2px solid #fce2d6;
+  color: #3a312c;
+}
+
+.report-explain {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.72rem;
+  color: #6b5f58;
+}
+
+.report-list {
+  margin: 0;
+  padding-left: 1.1rem;
+}
+
+.report-list li {
+  margin-bottom: 0.55rem;
+}
+
+.report-footer {
+  margin-top: 1.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid hsl(var(--border));
+  font-size: 0.72rem;
+  color: #6b5f58;
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 15mm;
+  }
+
+  body {
+    background: #ffffff;
+  }
+
+  .print-hide,
+  .workspace-nav {
+    display: none !important;
+  }
+
+  .report-page {
+    padding: 0;
+    background: #ffffff;
+  }
+
+  .report-sheet {
+    margin: 0;
+    max-width: none;
+    border: 0;
+    border-radius: 0;
+    padding: 0;
+    font-size: 10pt;
+  }
+
+  .report-candidate {
+    break-inside: avoid-page;
+    page-break-inside: avoid;
+  }
+
+  .report-table tr,
+  .report-list li {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
 }

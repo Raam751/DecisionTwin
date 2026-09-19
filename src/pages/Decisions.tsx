@@ -5,6 +5,7 @@ import {
   CheckCircle2,
   CircleAlert,
   CircleDashed,
+  FileText,
   LoaderCircle,
   Scale,
   UserRound,
@@ -169,6 +170,15 @@ const Decisions = () => {
             shortlisted by the tool: it is a record, in the order the candidates
             were added.
           </p>
+          <div className="mt-5">
+            <Link
+              to="/report"
+              className="focus-ring inline-flex items-center gap-2 rounded-xl border border-line bg-card px-4 py-2.5 text-sm font-semibold text-ink transition-colors hover:border-brand/40 hover:bg-surface"
+            >
+              <FileText className="h-4 w-4" aria-hidden />
+              Export auditable hiring report
+            </Link>
+          </div>
         </header>
 
         {loading && (

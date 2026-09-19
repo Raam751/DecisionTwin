@@ -7,6 +7,7 @@ import NewCandidate from "./pages/NewCandidate";
 import NewRole from "./pages/NewRole";
 import NotFound from "./pages/NotFound";
 import Review from "./pages/Review";
+import Report from "./pages/Report";
 import Roles from "./pages/Roles";
 import Search from "./pages/Search";
 
@@ -50,6 +51,11 @@ export const routers = [
     path: "/decisions",
     name: "decisions",
     element: <AppShell><Decisions /></AppShell>,
+  },
+  {
+    path: "/report",
+    name: "report",
+    element: <AppShell><Report /></AppShell>,
   },
   {
     path: "/search",
