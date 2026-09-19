@@ -7,30 +7,40 @@ import type { DocumentLine } from "@/types";
 interface SourceDocumentProps {
   title: string;
   lines: DocumentLine[];
-  activeRange: { start: number; end: number } | null;
+  /** The specific line numbers to highlight, for example just the clashing ones. */
+  highlightedLines: number[];
+  /** The chip label, for example "line 4" or "conflicting lines 4, 9". */
+  label: string;
 }
 
-const SourceDocument = ({ title, lines, activeRange }: SourceDocumentProps) => {
+const SourceDocument = ({
+  title,
+  lines,
+  highlightedLines,
+  label,
+}: SourceDocumentProps) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [flash, setFlash] = useState(false);
 
-  const start = activeRange?.start ?? null;
-  const end = activeRange?.end ?? null;
+  const firstLine = highlightedLines[0] ?? null;
+  const lastLine = highlightedLines[highlightedLines.length - 1] ?? null;
 
   // Keyed on the numbers rather than the object, so a re-render with the same
   // citation does not scroll or flash again.
   useEffect(() => {
-    if (start === null) return;
+    if (firstLine === null) return;
 
     const element = scrollRef.current?.querySelector(
-      `[data-src-line="${start}"]`,
+      `[data-src-line="${firstLine}"]`,
     );
     element?.scrollIntoView({ behavior: "smooth", block: "center" });
 
     setFlash(true);
     const timer = window.setTimeout(() => setFlash(false), 950);
     return () => window.clearTimeout(timer);
-  }, [start, end]);
+  }, [firstLine, lastLine]);
+
+  const highlighted = new Set(highlightedLines);
 
   return (
     <div className="card-surface overflow-hidden">
@@ -40,11 +50,9 @@ const SourceDocument = ({ title, lines, activeRange }: SourceDocumentProps) => {
           <p className="eyebrow">Exhibit</p>
           <p className="truncate text-sm font-semibold text-ink">{title}</p>
         </div>
-        {activeRange ? (
+        {highlightedLines.length > 0 ? (
           <span className="shrink-0 rounded-full border border-brand/25 bg-peach px-2.5 py-1 font-mono text-2xs font-semibold uppercase tracking-[0.08em] text-peach-foreground">
-            {activeRange.start === activeRange.end
-              ? `line ${activeRange.start}`
-              : `lines ${activeRange.start} to ${activeRange.end}`}
+            {label}
           </span>
         ) : (
           <span className="shrink-0 font-mono text-2xs uppercase tracking-[0.08em] text-muted-foreground">
@@ -55,10 +63,7 @@ const SourceDocument = ({ title, lines, activeRange }: SourceDocumentProps) => {
 
       <div ref={scrollRef} className="max-h-[600px] overflow-y-auto py-3">
         {lines.map((line) => {
-          const inRange =
-            start !== null &&
-            line.lineNumber >= start &&
-            line.lineNumber <= (end ?? start);
+          const inRange = highlighted.has(line.lineNumber);
 
           return (
             <div

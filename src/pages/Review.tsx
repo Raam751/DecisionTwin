@@ -25,6 +25,7 @@ import { SummaryForCandidate } from "@/components/summary-for-candidate";
 import { Button } from "@/components/ui/button";
 import { REVIEWERS, useEvidenceRecord } from "@/hooks/use-evidence-record";
 import { currentStageOf, nextStage, STAGES } from "@/lib/stages";
+import { clashingLinesForItem } from "@/lib/citation-lines";
 import { fetchStoredRecord, generateEvidence } from "@/services/evidence-api";
 import { saveReview } from "@/services/review-api";
 import { cn } from "@/lib/utils";
@@ -300,9 +301,33 @@ const Review = () => {
   const activeItem = record?.evidence.find(
     (e) => e.criterionId === activeCriterionId && e.sourceStartLine > 0,
   );
-  const activeRange = activeItem
-    ? { start: activeItem.sourceStartLine, end: activeItem.sourceEndLine }
-    : null;
+
+  // A conflicting citation is two clashing passages; highlight only the lines
+  // that actually carry them instead of the whole span in between. Every other
+  // item highlights its full cited range.
+  const activeClashing =
+    activeItem && candidate
+      ? clashingLinesForItem(activeItem, candidate.documentLines)
+      : null;
+  const activeHighlightedLines =
+    activeItem && activeClashing
+      ? activeClashing
+      : activeItem
+        ? Array.from(
+            { length: activeItem.sourceEndLine - activeItem.sourceStartLine + 1 },
+            (_, index) => activeItem.sourceStartLine + index,
+          )
+        : [];
+  const activeLabel =
+    activeItem && activeClashing
+      ? activeClashing.length === 1
+        ? `conflicting line ${activeClashing[0]}`
+        : `conflicting lines ${activeClashing.join(", ")}`
+      : activeItem
+        ? activeItem.sourceStartLine === activeItem.sourceEndLine
+          ? `line ${activeItem.sourceStartLine}`
+          : `lines ${activeItem.sourceStartLine} to ${activeItem.sourceEndLine}`
+        : "no line selected";
 
   const unresolvedCount =
     record?.evidence.filter((e) => e.status !== "supported").length ?? 0;
@@ -542,9 +567,23 @@ const Review = () => {
                   const lineRef = isInterview
                     ? null
                     : clickable && item
-                      ? item.sourceStartLine === item.sourceEndLine
-                        ? `line ${item.sourceStartLine}`
-                        : `lines ${item.sourceStartLine} to ${item.sourceEndLine}`
+                      ? item.status === "conflicting"
+                        ? (() => {
+                            const clashing = clashingLinesForItem(
+                              item,
+                              candidate.documentLines,
+                            );
+                            return clashing
+                              ? clashing.length === 1
+                                ? `conflicting line ${clashing[0]}`
+                                : `conflicting lines ${clashing.join(", ")}`
+                              : item.sourceStartLine === item.sourceEndLine
+                                ? `line ${item.sourceStartLine}`
+                                : `lines ${item.sourceStartLine} to ${item.sourceEndLine}`;
+                          })()
+                        : item.sourceStartLine === item.sourceEndLine
+                          ? `line ${item.sourceStartLine}`
+                          : `lines ${item.sourceStartLine} to ${item.sourceEndLine}`
                       : isUncertain
                         ? "no cited lines"
                         : "not cited";
@@ -772,7 +811,8 @@ const Review = () => {
             <SourceDocument
               title={`${candidate.name}, ${candidate.documentTitle}`}
               lines={candidate.documentLines}
-              activeRange={activeRange}
+              highlightedLines={activeHighlightedLines}
+              label={activeLabel}
             />
           </section>
         </div>
