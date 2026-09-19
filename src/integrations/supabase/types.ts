@@ -3400,9 +3400,11 @@ export type Database = {
           human_decision: Json | null
           id: string
           interview_questions: Json
+          model_proposal: Json | null
           replay_metadata: Json
           reviewer_edits: Json
           role_id: string
+          sensitivity_diagnostic: Json | null
           updated_at: string
           workspace_id: string | null
         }
@@ -3415,9 +3417,11 @@ export type Database = {
           human_decision?: Json | null
           id: string
           interview_questions?: Json
+          model_proposal?: Json | null
           replay_metadata?: Json
           reviewer_edits?: Json
           role_id: string
+          sensitivity_diagnostic?: Json | null
           updated_at?: string
           workspace_id?: string | null
         }
@@ -3430,9 +3434,11 @@ export type Database = {
           human_decision?: Json | null
           id?: string
           interview_questions?: Json
+          model_proposal?: Json | null
           replay_metadata?: Json
           reviewer_edits?: Json
           role_id?: string
+          sensitivity_diagnostic?: Json | null
           updated_at?: string
           workspace_id?: string | null
         }

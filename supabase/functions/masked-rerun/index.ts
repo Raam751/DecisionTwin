@@ -1,42 +1,24 @@
 /**
- * generate-evidence
+ * masked-rerun
  *
- * Takes a role's criteria and a candidate's numbered document lines, asks the
- * model for source-linked evidence, then verifies every citation server-side
- * before returning or storing anything.
+ * Runs the same evidence extraction a second time against a version of the
+ * document with the candidate's name and pronouns removed, then compares the
+ * result per criterion against the record already stored.
  *
- * Required secrets:
- *   MODEL_API_URL   model endpoint, base URL is fine, the path is normalised
- *   MODEL_API_KEY   credential for that endpoint
- *   MODEL_NAME      model identifier
- * Optional:
- *   MODEL_PROTOCOL      "anthropic" or "openai". Auto-detected when unset:
- *                       a model name containing "claude" uses the Anthropic
- *                       Messages protocol, everything else uses
- *                       OpenAI-compatible chat completions.
- *   MODEL_AUTH_SCHEME   "x-api-key", "bearer" or "both". Pins the credential
- *                       form once you know which one the gateway accepts,
- *                       instead of trying each in turn.
- *   MODEL_EXTRA_HEADERS JSON object of additional headers, for gateways that
- *                       require project attribution or similar. Example:
- *                       {"x-project-id":"abc123"}
- * Provided automatically by Supabase:
- *   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
+ * This is a REVIEW TRIGGER, not a fairness result. It masks a name and pronouns
+ * only, so it cannot detect every proxy. A changed status means a human should
+ * look, and nothing more than that.
  *
- * The service role key must never be sent to the browser.
+ * It never writes to the record's evidence, questions, edits, decisions or
+ * stage. The only thing it writes is sensitivity_diagnostic.
+ *
+ * Secrets are shared with generate-evidence. The protocol handling, auth scheme
+ * ladder, URL normalisation, verification rule and prompt below are copied from
+ * generate-evidence deliberately, because the deploy platform bundles this file
+ * alone and the two runs must be compared like for like.
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-// ---------------------------------------------------------------------------
-// Server-side citation verification.
-//
-// Kept inline on purpose. The deploy platform bundles this file alone, so a
-// shared module would mean the deployed code could drift from the repository.
-// This is the core trust mechanism: the model proposes a quote and a line
-// range, and this code independently checks the quote really exists there. The
-// model never sets citationVerified. Only this code does.
-// ---------------------------------------------------------------------------
 
 type EvidenceStatus = "supported" | "uncertain" | "conflicting";
 
@@ -158,13 +140,6 @@ async function hashInput(value: string): Promise<string> {
     .join("");
 }
 
-// ---------------------------------------------------------------------------
-// Edge function
-// ---------------------------------------------------------------------------
-
-const PROMPT_VERSION = "v1";
-const SCHEMA_VERSION = "v1";
-
 const cors = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -178,53 +153,7 @@ const json = (body: unknown, status = 200) =>
     headers: { ...cors, "Content-Type": "application/json" },
   });
 
-interface RequestBody {
-  candidateId: string;
-  roleId: string;
-  criteria: { id: string; label: string; description: string }[];
-  documentLines: DocumentLine[];
-  persist?: boolean;
-  /** Which browser workspace generated this, so records stay isolated. */
-  workspaceId?: string;
-}
 
-function buildPrompt(body: RequestBody): string {
-  const numbered = body.documentLines
-    .map((l) => `${l.lineNumber}: ${l.text}`)
-    .join("\n");
-
-  const criteria = body.criteria
-    .map((c) => `- ${c.id} (${c.label}): ${c.description}`)
-    .join("\n");
-
-  return [
-    "You assess whether a candidate document supports a set of hiring criteria.",
-    "",
-    "CRITERIA",
-    criteria,
-    "",
-    "SOURCE DOCUMENT, one numbered line per line",
-    numbered,
-    "",
-    "RULES",
-    "1. Return exactly one evidence item per criterion, using the criterion id.",
-    '2. status is "supported" only when the document directly supports the criterion.',
-    '3. status is "uncertain" when support is missing, vague or too weak.',
-    '4. status is "conflicting" when the document makes two claims that cannot both be true.',
-    "5. quotedText must be copied verbatim from the lines you cite. Never paraphrase.",
-    "6. When you cite several consecutive lines, join their text with a single space.",
-    "7. sourceStartLine and sourceEndLine must be the real line numbers of that quote.",
-    '8. For "uncertain", set quotedText to an empty string and both line numbers to 0.',
-    "9. Never invent evidence. A missing citation is the correct answer, not a failure.",
-    "10. Add one interviewQuestion for every criterion that is not supported.",
-    '11. For a conflicting criterion, quote BOTH clashing passages verbatim, separated by " ... ", and set sourceStartLine to the first passage\'s line and sourceEndLine to the last passage\'s line.',
-    "",
-    "Return only JSON in this shape:",
-    '{"evidence":[{"criterionId":"","status":"supported|uncertain|conflicting",',
-    '"quotedText":"","sourceStartLine":0,"sourceEndLine":0,"explanation":""}],',
-    '"interviewQuestions":[{"criterionId":"","question":""}]}',
-  ].join("\n");
-}
 
 function extractJson(raw: string): unknown {
   const trimmed = raw.trim().replace(/^```(?:json)?/i, "").replace(/```$/, "");
@@ -449,6 +378,107 @@ async function callModel(
   );
 }
 
+function buildPrompt(body: RequestBody): string {
+  const numbered = body.documentLines
+    .map((l) => `${l.lineNumber}: ${l.text}`)
+    .join("\n");
+
+  const criteria = body.criteria
+    .map((c) => `- ${c.id} (${c.label}): ${c.description}`)
+    .join("\n");
+
+  return [
+    "You assess whether a candidate document supports a set of hiring criteria.",
+    "",
+    "CRITERIA",
+    criteria,
+    "",
+    "SOURCE DOCUMENT, one numbered line per line",
+    numbered,
+    "",
+    "RULES",
+    "1. Return exactly one evidence item per criterion, using the criterion id.",
+    '2. status is "supported" only when the document directly supports the criterion.',
+    '3. status is "uncertain" when support is missing, vague or too weak.',
+    '4. status is "conflicting" when the document makes two claims that cannot both be true.',
+    "5. quotedText must be copied verbatim from the lines you cite. Never paraphrase.",
+    "6. When you cite several consecutive lines, join their text with a single space.",
+    "7. sourceStartLine and sourceEndLine must be the real line numbers of that quote.",
+    '8. For "uncertain", set quotedText to an empty string and both line numbers to 0.',
+    "9. Never invent evidence. A missing citation is the correct answer, not a failure.",
+    "10. Add one interviewQuestion for every criterion that is not supported.",
+    '11. For a conflicting criterion, quote BOTH clashing passages verbatim, separated by " ... ", and set sourceStartLine to the first passage\'s line and sourceEndLine to the last passage\'s line.',
+    "",
+    "Return only JSON in this shape:",
+    '{"evidence":[{"criterionId":"","status":"supported|uncertain|conflicting",',
+    '"quotedText":"","sourceStartLine":0,"sourceEndLine":0,"explanation":""}],',
+    '"interviewQuestions":[{"criterionId":"","question":""}]}',
+  ].join("\n");
+}
+
+// ---------------------------------------------------------------------------
+// Masking
+//
+// Substitution in place only. The line count and every line number must survive
+// untouched, otherwise citations from the masked run would point at the wrong
+// place and the comparison would be meaningless. Nothing is summarised,
+// reordered or rewritten.
+// ---------------------------------------------------------------------------
+
+const escapeRegExp = (value: string): string =>
+  value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const PRONOUNS: [RegExp, string][] = [
+  [/\bhe\b/gi, "they"],
+  [/\bshe\b/gi, "they"],
+  [/\bhim\b/gi, "them"],
+  [/\bhis\b/gi, "their"],
+  [/\bhers\b/gi, "theirs"],
+  [/\bher\b/gi, "their"],
+  [/\bhimself\b/gi, "themselves"],
+  [/\bherself\b/gi, "themselves"],
+];
+
+export const MASKED_FIELDS_LABEL =
+  "candidate name and gendered pronouns, replaced in place";
+
+function maskLines(
+  lines: DocumentLine[],
+  candidateName: string,
+): DocumentLine[] {
+  const parts = (candidateName ?? "")
+    .split(/\s+/)
+    .map((part) => part.trim())
+    .filter((part) => part.length > 1);
+
+  return lines.map((line) => {
+    let text = line.text;
+    for (const part of parts) {
+      text = text.replace(
+        new RegExp(`\\b${escapeRegExp(part)}\\b`, "gi"),
+        "CANDIDATE",
+      );
+    }
+    for (const [pattern, replacement] of PRONOUNS) {
+      text = text.replace(pattern, replacement);
+    }
+    // lineNumber is carried through unchanged on purpose.
+    return { lineNumber: line.lineNumber, text };
+  });
+}
+
+
+interface RequestBody {
+  workspaceId?: string;
+  candidateId?: string;
+  roleId?: string;
+  candidateName?: string;
+  criteria?: { id: string; label: string; description: string }[];
+  documentLines?: DocumentLine[];
+}
+
+type ComparableStatus = EvidenceStatus | "missing";
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return json({ error: "POST only" }, 405);
@@ -460,44 +490,77 @@ Deno.serve(async (req) => {
     return json({ error: "invalid JSON body" }, 400);
   }
 
+  const workspaceId = (body.workspaceId ?? "").trim();
+  if (!workspaceId) return json({ error: "workspaceId is required" }, 400);
+
   if (
-    !body?.candidateId ||
-    !body?.roleId ||
+    !body.candidateId ||
+    !body.roleId ||
     !Array.isArray(body.criteria) ||
     !Array.isArray(body.documentLines) ||
     body.documentLines.length === 0
   ) {
-    return json({ error: "candidateId, roleId, criteria and documentLines are required" }, 400);
+    return json(
+      {
+        error:
+          "candidateId, roleId, criteria and documentLines are required",
+      },
+      400,
+    );
   }
 
-  if (body.workspaceId !== undefined && typeof body.workspaceId !== "string") {
-    return json({ error: "workspaceId must be a string when provided" }, 400);
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!supabaseUrl || !serviceKey) {
+    return json({ error: "the review store is not configured" }, 500);
+  }
+  const admin = createClient(supabaseUrl, serviceKey);
+
+  // The unmasked side of the comparison is whatever is already stored. This
+  // function never regenerates it.
+  const { data: stored, error: readError } = await admin
+    .from("evidence_records")
+    .select("id, evidence")
+    .eq("workspace_id", workspaceId)
+    .eq("candidate_id", body.candidateId)
+    .maybeSingle();
+
+  if (readError) {
+    return json(
+      { error: `could not read the record: ${readError.message}` },
+      502,
+    );
+  }
+  if (!stored) {
+    return json(
+      {
+        error:
+          "there is no generated record for this candidate yet, so there is nothing to compare against. Generate the evidence first.",
+        code: "record_missing",
+      },
+      404,
+    );
   }
 
-  const prompt = buildPrompt(body);
+  const maskedLines = maskLines(body.documentLines, body.candidateName ?? "");
+  const prompt = buildPrompt({
+    criteria: body.criteria,
+    documentLines: maskedLines,
+  });
 
-  type ModelPayload = {
-    evidence?: EvidenceItem[];
-    interviewQuestions?: { criterionId: string; question: string }[];
-  };
-
-  let parsed: ModelPayload;
-  let authScheme: AuthScheme;
+  let parsed: { evidence?: EvidenceItem[] };
   try {
     const result = await callModel(prompt);
-    parsed = result.parsed as ModelPayload;
-    authScheme = result.authScheme;
+    parsed = result.parsed as { evidence?: EvidenceItem[] };
   } catch (error) {
-    return json({ error: `model call failed: ${(error as Error).message}` }, 502);
+    return json(
+      { error: `model call failed: ${(error as Error).message}` },
+      502,
+    );
   }
 
   const proposed = Array.isArray(parsed.evidence) ? parsed.evidence : [];
-  if (proposed.length === 0) {
-    return json({ error: "model returned no evidence items" }, 502);
-  }
-
-  // Fill in any criterion the model skipped, so the UI never shows a gap.
-  const seen = new Set(proposed.map((e) => e.criterionId));
+  const seen = new Set(proposed.map((item) => item.criterionId));
   for (const criterion of body.criteria) {
     if (!seen.has(criterion.id)) {
       proposed.push({
@@ -512,83 +575,57 @@ Deno.serve(async (req) => {
     }
   }
 
-  // Snapshot what the model claimed BEFORE verification touches it, so the
-  // reviewer can see exactly what the server changed. citationVerified is
-  // deliberately dropped here: a proposal is never verified by definition.
-  const modelProposal = proposed.map((item) => ({
-    criterionId: item.criterionId,
-    status: item.status,
-    quotedText: item.quotedText,
-    sourceStartLine: item.sourceStartLine,
-    sourceEndLine: item.sourceEndLine,
-    explanation: item.explanation,
-  }));
+  // Verified against the MASKED lines, which is why masking had to preserve
+  // the numbering.
+  const { verified } = verifyAll(proposed, maskedLines);
 
-  const { verified, rejected } = verifyAll(proposed, body.documentLines);
-
-  const unresolved = new Set(
-    verified.filter((e) => e.status !== "supported").map((e) => e.criterionId),
-  );
-  const interviewQuestions = (parsed.interviewQuestions ?? []).filter((q) =>
-    unresolved.has(q.criterionId),
-  );
-
-  // The record id carries the workspace so two browsers never collide on the
-  // same candidate: seeded ids like candidate-a exist in every workspace, and
-  // the primary key is the id, so the workspace prefix keeps each browser's
-  // record separate.
-  const workspaceId = body.workspaceId?.trim();
-  const record = {
-    id: workspaceId
-      ? `evidence-${workspaceId.slice(0, 8)}-${body.candidateId}`
-      : `evidence-${body.candidateId}`,
-    candidateId: body.candidateId,
-    roleId: body.roleId,
-    evidence: verified,
-    interviewQuestions,
-    reviewerEdits: [],
-    humanDecision: null,
-    modelProposal,
-    replayMetadata: {
-      modelName: Deno.env.get("MODEL_NAME") ?? "unknown",
-      promptVersion: PROMPT_VERSION,
-      schemaVersion: SCHEMA_VERSION,
-      inputHash: await hashInput(prompt),
-      runTimestamp: new Date().toISOString(),
-    },
-  };
-
-  if (body.persist !== false) {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    if (supabaseUrl && serviceKey) {
-      const admin = createClient(supabaseUrl, serviceKey);
-      const { error } = await admin.from("evidence_records").upsert(
-        {
-          id: record.id,
-          workspace_id: workspaceId ?? null,
-          candidate_id: record.candidateId,
-          role_id: record.roleId,
-          evidence: record.evidence,
-          model_proposal: record.modelProposal,
-          interview_questions: record.interviewQuestions,
-          reviewer_edits: record.reviewerEdits,
-          human_decision: record.humanDecision,
-          replay_metadata: record.replayMetadata,
-        },
-        { onConflict: "id" },
-      );
-      if (error) {
-        return json({ record, rejectedCitations: rejected, persisted: false, persistError: error.message });
-      }
-    }
+  // Compare document-sourced evidence only. An interview answer has no masked
+  // counterpart, so including it would produce a meaningless difference.
+  const storedEvidence = Array.isArray(stored.evidence)
+    ? (stored.evidence as EvidenceItem[])
+    : [];
+  const unmaskedByCriterion = new Map<string, EvidenceStatus>();
+  for (const item of storedEvidence) {
+    const isInterview = (item as { recordedAtInterview?: boolean })
+      .recordedAtInterview;
+    if (isInterview) continue;
+    unmaskedByCriterion.set(item.criterionId, item.status);
+  }
+  const maskedByCriterion = new Map<string, EvidenceStatus>();
+  for (const item of verified) {
+    maskedByCriterion.set(item.criterionId, item.status);
   }
 
-  return json({
-    record,
-    rejectedCitations: rejected,
-    persisted: body.persist !== false,
-    // Which credential form the gateway accepted. Pin it with MODEL_AUTH_SCHEME.
-    authScheme,
+  const comparisons = body.criteria.map((criterion) => {
+    const unmaskedStatus: ComparableStatus =
+      unmaskedByCriterion.get(criterion.id) ?? "missing";
+    const maskedStatus: ComparableStatus =
+      maskedByCriterion.get(criterion.id) ?? "missing";
+    return {
+      criterionId: criterion.id,
+      unmaskedStatus,
+      maskedStatus,
+      changed: unmaskedStatus !== maskedStatus,
+    };
   });
+
+  const diagnostic = {
+    runTimestamp: new Date().toISOString(),
+    maskedFields: MASKED_FIELDS_LABEL,
+    comparisons,
+    changedCount: comparisons.filter((entry) => entry.changed).length,
+  };
+
+  // The ONLY column this function writes.
+  const { error: writeError } = await admin
+    .from("evidence_records")
+    .update({ sensitivity_diagnostic: diagnostic })
+    .eq("id", stored.id)
+    .eq("workspace_id", workspaceId);
+
+  if (writeError) {
+    return json({ diagnostic, persisted: false, persistError: writeError.message });
+  }
+
+  return json({ diagnostic, persisted: true });
 });

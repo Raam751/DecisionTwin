@@ -1,0 +1,11 @@
+alter table public.evidence_records
+  add column if not exists model_proposal jsonb;
+
+alter table public.evidence_records
+  add column if not exists sensitivity_diagnostic jsonb;
+
+comment on column public.evidence_records.model_proposal is
+  'Unverified model output captured before server-side citation verification. Never treat as verified evidence.';
+
+comment on column public.evidence_records.sensitivity_diagnostic is
+  'Masked rerun comparison. A review trigger only, not a fairness determination.';

@@ -3,6 +3,7 @@ import { Plus, Table2, UserPlus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { BatchGenerate } from "@/components/batch-generate";
 import { useRoles } from "@/state/roles-store";
 
 const Index = () => {
@@ -75,6 +76,12 @@ const Index = () => {
               </Button>
             </div>
           </div>
+
+          {activeCandidates.length > 0 && (
+            <div className="mt-5">
+              <BatchGenerate role={activeRole} candidates={activeCandidates} />
+            </div>
+          )}
 
           {activeCandidates.length === 0 ? (
             <div className="mt-5 rounded-2xl border bg-card p-6 text-sm text-muted-foreground">

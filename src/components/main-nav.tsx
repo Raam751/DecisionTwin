@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { BriefcaseBusiness, Scale, UsersRound } from "lucide-react";
+import { BriefcaseBusiness, Scale, Search, UsersRound } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
@@ -7,6 +7,7 @@ const ITEMS = [
   { to: "/dashboard", label: "Candidates", icon: UsersRound, end: true },
   { to: "/roles", label: "Roles", icon: BriefcaseBusiness, end: false },
   { to: "/decisions", label: "Decisions", icon: Scale, end: false },
+  { to: "/search", label: "Ask", icon: Search, end: false },
 ];
 
 /**
